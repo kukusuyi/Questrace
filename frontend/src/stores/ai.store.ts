@@ -51,19 +51,16 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  async function fetchChapters(force = false) {
-    if (chapters.value.length && !force) {
-      return chapters.value
-    }
-
-    loadingChapters.value = true
-    try {
-      const response = await listAIChapters()
-      chapters.value = response.list
-      return response.list
-    } finally {
-      loadingChapters.value = false
-    }
+  const chaptersByScope=ref<Record<string,string[]>>({})
+  let chapterRequest=0
+  async function fetchChapters(force=false,subjectId='',courseId='') {
+    const token=++chapterRequest,key=`${subjectId}:${courseId}`
+    chapters.value=[]
+    if(!subjectId)return []
+    if(!force && chaptersByScope.value[key]){chapters.value=chaptersByScope.value[key];return chapters.value}
+    loadingChapters.value=true
+    try{const response=await listAIChapters(subjectId,courseId);chaptersByScope.value[key]=response.list;if(token===chapterRequest)chapters.value=response.list;return response.list}
+    finally{if(token===chapterRequest)loadingChapters.value=false}
   }
 
   async function fetchModels(providerName: string, force = false) {

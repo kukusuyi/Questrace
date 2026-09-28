@@ -1,3 +1,4 @@
+import '../../shared/widgets/subject_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,9 +53,7 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage> {
     if (draft == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('AI 确认')),
-        body: const Center(
-          child: Text('当前没有可确认的 AI 草稿。'),
-        ),
+        body: const Center(child: Text('当前没有可确认的 AI 草稿。')),
       );
     }
 
@@ -82,8 +81,8 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage> {
                   Text(
                     '题目预览',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   LatexBlock(draft.questionJson.questionCore),
@@ -97,16 +96,21 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  TextFormField(
-                    controller: _subjectController,
-                    decoration: const InputDecoration(labelText: '学科'),
-                    onChanged: (_) => _persistDraft(),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _chapterController,
-                    decoration: const InputDecoration(labelText: '章节'),
-                    onChanged: (_) => _persistDraft(),
+                  if (draft.warnings.isNotEmpty) Text(draft.warnings.join('；')),
+                  SubjectPicker(
+                    suggestedSubject: draft.suggestedSubject,
+                    onSuggestionDismissed: () => ref
+                        .read(questionDraftControllerProvider.notifier)
+                        .dismissSuggestedSubject(),
+                    value: draft.classification,
+                    chapter: _chapterController.text,
+                    onChanged: (v, c) {
+                      _subjectController.text = v.subjectName;
+                      _chapterController.text = c;
+                      ref
+                          .read(questionDraftControllerProvider.notifier)
+                          .updateClassification(v, c);
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -206,7 +210,9 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage> {
   }
 
   void _persistDraft() {
-    ref.read(questionDraftControllerProvider.notifier).updateReviewFields(
+    ref
+        .read(questionDraftControllerProvider.notifier)
+        .updateReviewFields(
           subject: _subjectController.text.trim(),
           chapter: _chapterController.text.trim(),
           tags: TagGroups(
@@ -235,8 +241,9 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage> {
     });
 
     try {
-      final questionId =
-          await ref.read(questionFlowServiceProvider).saveCurrentDraft();
+      final questionId = await ref
+          .read(questionFlowServiceProvider)
+          .saveCurrentDraft();
       if (mounted) {
         context.go('/questions/$questionId');
       }
@@ -260,9 +267,9 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _confirmDiscard() async {

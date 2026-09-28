@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kukusuyi/Questrace/backend/internal/domain/model"
+	apperrors "github.com/kukusuyi/Questrace/backend/internal/pkg/errors"
 )
 
 type SQLiteQuestionRepository struct {
@@ -31,9 +32,10 @@ func (r *SQLiteQuestionRepository) Create(question model.WrongQuestion) (model.W
 
 	result, err := tx.Exec(
 		`INSERT INTO wrong_question
-		(user_id, subject, chapter, question_core, standard_solution, wrong_solution, semantic_summary, mistake_summary, difficulty_level, mastery_status, source_type, source_image_id, source_image_url, is_deleted, deleted_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(user_id, subject_id, course_id, classification_status, analysis_stale, subject, chapter, question_core, standard_solution, wrong_solution, semantic_summary, mistake_summary, difficulty_level, mastery_status, source_type, source_image_id, source_image_url, is_deleted, deleted_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		question.UserID,
+		question.SubjectID, question.CourseID, question.ClassificationStatus, question.AnalysisStale,
 		question.Subject,
 		nullableStringValue(question.Chapter),
 		question.QuestionCore,
@@ -86,9 +88,9 @@ func (r *SQLiteQuestionRepository) Update(question model.WrongQuestion) (model.W
 	if err != nil {
 		return model.WrongQuestion{}, err
 	}
-	_, err = tx.Exec(
+	result, err := tx.Exec(
 		`UPDATE wrong_question
-		SET subject = ?,
+		SET subject_id=?, course_id=?, classification_status=?, analysis_stale=?, subject = ?,
 		    chapter = ?,
 		    question_core = ?,
 		    standard_solution = ?,
@@ -100,7 +102,8 @@ func (r *SQLiteQuestionRepository) Update(question model.WrongQuestion) (model.W
 		    source_image_id = ?,
 		    source_image_url = ?,
 		    updated_at = ?
-		WHERE id = ?`,
+		WHERE id = ? AND revision = ?`,
+		question.SubjectID, question.CourseID, question.ClassificationStatus, question.AnalysisStale,
 		question.Subject,
 		nullableStringValue(question.Chapter),
 		question.QuestionCore,
@@ -113,12 +116,19 @@ func (r *SQLiteQuestionRepository) Update(question model.WrongQuestion) (model.W
 		nullableInt64Value(question.SourceImageID),
 		nullableStringValue(question.SourceImageURL),
 		question.UpdatedAt,
-		question.ID,
+		question.ID, question.Revision,
 	)
 	if err != nil {
 		return model.WrongQuestion{}, err
 	}
 
+	if count, rowsErr := result.RowsAffected(); rowsErr != nil {
+		err = rowsErr
+		return model.WrongQuestion{}, err
+	} else if count == 0 {
+		err = apperrors.New(409, 40901, "题目已被修改，请刷新后重试")
+		return model.WrongQuestion{}, err
+	}
 	if err = r.replaceQuestionTags(tx, question.ID, question.UserID, question.Tags); err != nil {
 		return model.WrongQuestion{}, err
 	}
@@ -132,7 +142,7 @@ func (r *SQLiteQuestionRepository) Update(question model.WrongQuestion) (model.W
 
 func (r *SQLiteQuestionRepository) GetByID(id int64) (model.WrongQuestion, bool) {
 	row := r.db.QueryRow(
-		`SELECT id, user_id, subject, chapter, question_core, standard_solution, wrong_solution, semantic_summary, mistake_summary, difficulty_level, mastery_status, source_type, source_image_id, source_image_url, is_deleted, deleted_at, created_at, updated_at
+		`SELECT id, user_id, subject_id, course_id, classification_status, analysis_stale, revision, subject, chapter, question_core, standard_solution, wrong_solution, semantic_summary, mistake_summary, difficulty_level, mastery_status, source_type, source_image_id, source_image_url, is_deleted, deleted_at, created_at, updated_at
 		FROM wrong_question
 		WHERE id = ?`,
 		id,
@@ -166,7 +176,7 @@ func (r *SQLiteQuestionRepository) List(filter QuestionFilter) ([]model.WrongQue
 	}
 
 	query := `
-SELECT q.id, q.user_id, q.subject, q.chapter, q.question_core, q.standard_solution, q.wrong_solution, q.semantic_summary, q.mistake_summary, q.difficulty_level, q.mastery_status, q.source_type, q.source_image_id, q.source_image_url, q.is_deleted, q.deleted_at, q.created_at, q.updated_at
+SELECT q.id, q.user_id, q.subject_id, q.course_id, q.classification_status, q.analysis_stale, q.revision, q.subject, q.chapter, q.question_core, q.standard_solution, q.wrong_solution, q.semantic_summary, q.mistake_summary, q.difficulty_level, q.mastery_status, q.source_type, q.source_image_id, q.source_image_url, q.is_deleted, q.deleted_at, q.created_at, q.updated_at
 FROM wrong_question q` + whereSQL + `
 ORDER BY q.created_at DESC, q.id DESC
 LIMIT ? OFFSET ?`
@@ -408,6 +418,12 @@ func buildQuestionFilterSQL(filter QuestionFilter) (string, []any) {
 		args = append(args, filter.UserID)
 	}
 
+	for _, f := range []struct{ column, value string }{{"subject_id", filter.SubjectID}, {"course_id", filter.CourseID}, {"classification_status", filter.ClassificationStatus}} {
+		if f.value != "" {
+			conditions = append(conditions, "q."+f.column+"=?")
+			args = append(args, f.value)
+		}
+	}
 	if strings.TrimSpace(filter.Subject) != "" {
 		conditions = append(conditions, "q.subject = ?")
 		args = append(args, strings.TrimSpace(filter.Subject))
@@ -435,6 +451,9 @@ func buildQuestionFilterSQL(filter QuestionFilter) (string, []any) {
 	if strings.TrimSpace(filter.SourceType) != "" {
 		conditions = append(conditions, "q.source_type = ?")
 		args = append(args, filter.SourceType)
+	}
+	if len(filter.TagIDs) > 0 || len(filter.TagNames) > 0 {
+		conditions = append(conditions, "q.analysis_stale=0")
 	}
 	if len(filter.TagIDs) > 0 {
 		conditions = append(conditions, "EXISTS (SELECT 1 FROM wrong_question_tag wqt JOIN tag t ON t.id=wqt.tag_id WHERE wqt.question_id=q.id AND t.is_active=1 AND t.id IN ("+buildInt64InClause(filter.TagIDs)+"))")

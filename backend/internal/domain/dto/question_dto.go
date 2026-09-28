@@ -14,6 +14,13 @@ type TagGroups struct {
 }
 
 type CreateWrongQuestionRequest struct {
+	AnalysisConfirmed    bool   `json:"analysis_confirmed"`
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+
 	SourceType      string       `json:"source_type"`
 	SourceImageID   *int64       `json:"source_image_id"`
 	SourceImageURL  string       `json:"source_image_url"`
@@ -28,6 +35,13 @@ type CreateWrongQuestionRequest struct {
 }
 
 type UpdateWrongQuestionRequest struct {
+	AnalysisConfirmed    bool   `json:"analysis_confirmed"`
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+
 	QuestionJSON    QuestionJSON `json:"question_json"`
 	Subject         string       `json:"subject"`
 	Chapter         string       `json:"chapter"`
@@ -41,6 +55,12 @@ type UpdateWrongQuestionRequest struct {
 }
 
 type QuestionListItem struct {
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+
 	QuestionID      int64     `json:"question_id"`
 	QuestionCore    string    `json:"question_core"`
 	SourceImageID   *int64    `json:"source_image_id"`
@@ -54,6 +74,12 @@ type QuestionListItem struct {
 }
 
 type QuestionDetail struct {
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+
 	QuestionID       int64     `json:"question_id"`
 	QuestionCore     string    `json:"question_core"`
 	StandardSolution string    `json:"standard_solution"`
@@ -73,6 +99,12 @@ type QuestionDetail struct {
 }
 
 type QuestionExportItem struct {
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+
 	QuestionID       int64
 	QuestionCore     string
 	StandardSolution string
@@ -105,12 +137,21 @@ type DeleteWrongQuestionResponse struct {
 }
 
 type SimilarQuestionRequest struct {
+	RecallScope  string `json:"recall_scope"`
 	VectorType   string `json:"vector_type"`
 	Limit        int    `json:"limit"`
 	UseTagFilter bool   `json:"use_tag_filter"`
 }
 
 type SimilarByJSONRequest struct {
+	Chapter              string `json:"chapter"`
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+	RecallScope          string `json:"recall_scope"`
+
 	QuestionJSON QuestionJSON `json:"question_json"`
 	Tags         TagGroups    `json:"tags"`
 	VectorType   string       `json:"vector_type"`
@@ -119,6 +160,14 @@ type SimilarByJSONRequest struct {
 }
 
 type SimilarQuestionItem struct {
+	Subject              string `json:"subject"`
+	Chapter              string `json:"chapter"`
+	SubjectID            string `json:"subject_id"`
+	CourseID             string `json:"course_id"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	Revision             int64  `json:"revision"`
+
 	QuestionID     int64     `json:"question_id"`
 	Score          float64   `json:"score"`
 	SimilarityType string    `json:"similarity_type"`
@@ -131,19 +180,23 @@ type SimilarQuestionItem struct {
 }
 
 type SimilarQuestionResponse struct {
-	List []SimilarQuestionItem `json:"list"`
+	Status string                `json:"status"`
+	List   []SimilarQuestionItem `json:"list"`
 }
 
 type ListQuestionFilter struct {
-	Page            int
-	PageSize        int
-	Subject         string
-	Chapter         string
-	Keyword         string
-	TagIDs          []int64
-	MasteryStatus   string
-	DifficultyLevel int
-	SourceType      string
+	SubjectID            string
+	CourseID             string
+	ClassificationStatus string
+	Page                 int
+	PageSize             int
+	Subject              string
+	Chapter              string
+	Keyword              string
+	TagIDs               []int64
+	MasteryStatus        string
+	DifficultyLevel      int
+	SourceType           string
 }
 
 type CreateTagRequest struct {
@@ -177,8 +230,9 @@ type FileUploadResponse struct {
 }
 
 type UserMeResponse struct {
-	UserID    int64  `json:"user_id"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	CreatedAt string `json:"created_at"`
+	EducationStage string `json:"education_stage"`
+	UserID         int64  `json:"user_id"`
+	Username       string `json:"username"`
+	Email          string `json:"email"`
+	CreatedAt      string `json:"created_at"`
 }

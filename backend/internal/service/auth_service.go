@@ -34,6 +34,9 @@ func (s *AuthService) Register(req dto.RegisterRequest) (dto.RegisterResponse, e
 		return dto.RegisterResponse{}, apperrors.New(http.StatusForbidden, 40301, "当前服务未开放用户注册")
 	}
 
+	if err := ValidateEducationStage(req.EducationStage); err != nil {
+		return dto.RegisterResponse{}, err
+	}
 	req.Username = strings.TrimSpace(req.Username)
 	req.Email = strings.TrimSpace(req.Email)
 
@@ -65,10 +68,11 @@ func (s *AuthService) Register(req dto.RegisterRequest) (dto.RegisterResponse, e
 	}
 
 	user, err := s.userRepo.Create(model.User{
-		Username:     req.Username,
-		Email:        req.Email,
-		PasswordHash: string(hash),
-		Role:         "user",
+		Username:       req.Username,
+		Email:          req.Email,
+		PasswordHash:   string(hash),
+		Role:           "user",
+		EducationStage: req.EducationStage,
 	})
 	if err != nil {
 		return dto.RegisterResponse{}, fmt.Errorf("create user: %w", err)

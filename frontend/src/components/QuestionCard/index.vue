@@ -3,9 +3,8 @@
     <div class="card-top">
       <div>
         <div class="card-meta">
-          <span>{{ item.subject || '未分类学科' }}</span>
-          <span v-if="item.chapter">· {{ item.chapter }}</span>
-          <span>· 难度 {{ item.difficulty_level }}</span>
+          <ClassificationBadge :item="item"/>
+          <span class="difficulty">· 难度 {{ item.difficulty_level }}</span>
         </div>
         <div class="card-title"><LatexRenderer :content="item.question_core"/></div>
       </div>
@@ -39,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import ClassificationBadge from "@/components/ClassificationBadge/index.vue";
 import { useRouter } from 'vue-router'
 
 import LatexRenderer from '@/components/LatexRenderer/index.vue'
@@ -64,6 +64,8 @@ function handleTagClick(payload: { type: string; name: string }) {
   router.push({
     path: '/questions',
     query: {
+      subject_id: props.item.subject_id || undefined,
+      course_id: props.item.course_id || undefined,
       tagType: payload.type,
       tagName: payload.name,
     },
@@ -131,4 +133,10 @@ function handleTagClick(payload: { type: string; name: string }) {
   gap: 6px;
 }
 .card-top>div:first-child{min-width:0;flex:1}.card-title :deep(.latex-renderer){border:0;background:transparent}.card-title :deep(.renderer-preview){padding:0;min-height:0;max-height:144px;overflow:auto;font-weight:600}.card-title :deep(.latex-content){line-height:1.6}
+.difficulty { white-space: nowrap; }
+@media (max-width: 640px) {
+  .card-top { flex-wrap: wrap; }
+  .card-top > div:first-child { flex-basis: 100%; }
+  .card-side { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+}
 </style>

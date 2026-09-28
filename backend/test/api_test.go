@@ -48,6 +48,10 @@ func TestMain(m *testing.M) {
 			_ = json.NewDecoder(r.Body).Decode(&reqBody)
 
 			w.Header().Set("Content-Type", "application/json")
+			if len(reqBody.Messages) > 0 && strings.Contains(reqBody.Messages[0].Content, "多学科错题分类助手") {
+				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": `{"subject_id":"math_grad","course_id":"","chapter":"函数的极限和连续"}`}}}})
+				return
+			}
 			if len(reqBody.Messages) > 0 && strings.Contains(reqBody.Messages[0].Content, "错题章节识别接口") {
 				_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"chapter\":\"函数的极限和连续\"}"}}]}`))
 				return
@@ -124,7 +128,7 @@ func registerAndLogin(t *testing.T) string {
 		}
 	}
 
-	resp, body, err = doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	resp, body, err = doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: testUser,
 		Password: testPass,
 		Email:    testEmail,
@@ -153,7 +157,7 @@ func registerFreshUser(t *testing.T, prefix string) (string, string) {
 	username := fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
 	email := username + "@test.com"
 
-	resp, body, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	resp, body, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: username,
 		Password: testPass,
 		Email:    email,
@@ -229,7 +233,7 @@ func TestRegister(t *testing.T) {
 	username := "reg_" + testUser
 	email := username + "@test.com"
 
-	resp, body, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	resp, body, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: username,
 		Password: testPass,
 		Email:    email,
@@ -260,13 +264,13 @@ func TestRegisterDuplicateUsername(t *testing.T) {
 	dupUser := "dupuser_" + testUser
 	dupEmail := dupUser + "@test.com"
 
-	doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: dupUser,
 		Password: testPass,
 		Email:    dupEmail,
 	})
 
-	resp, _, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	resp, _, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: dupUser,
 		Password: testPass,
 		Email:    "other_" + dupEmail,
@@ -283,13 +287,13 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	dupUser := "dupemail_" + testUser
 	dupEmail := dupUser + "@test.com"
 
-	doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: dupUser,
 		Password: testPass,
 		Email:    dupEmail,
 	})
 
-	resp, _, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{
+	resp, _, err := doPost(baseURL+"/api/v1/auth/register", "", dto.RegisterRequest{EducationStage: "university",
 		Username: "other_" + dupUser,
 		Password: testPass,
 		Email:    dupEmail,
@@ -308,9 +312,9 @@ func TestRegisterValidation(t *testing.T) {
 		body     dto.RegisterRequest
 		wantCode int
 	}{
-		{"empty username", dto.RegisterRequest{Username: "", Password: "123456", Email: "a@b.com"}, http.StatusBadRequest},
-		{"short password", dto.RegisterRequest{Username: "u1", Password: "12345", Email: "a@b.com"}, http.StatusBadRequest},
-		{"empty email", dto.RegisterRequest{Username: "u1", Password: "123456", Email: ""}, http.StatusBadRequest},
+		{"empty username", dto.RegisterRequest{EducationStage: "university", Username: "", Password: "123456", Email: "a@b.com"}, http.StatusBadRequest},
+		{"short password", dto.RegisterRequest{EducationStage: "university", Username: "u1", Password: "12345", Email: "a@b.com"}, http.StatusBadRequest},
+		{"empty email", dto.RegisterRequest{EducationStage: "university", Username: "u1", Password: "123456", Email: ""}, http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -498,6 +502,7 @@ func TestQuestionCRUD(t *testing.T) {
 
 	t.Run("create", func(t *testing.T) {
 		resp, body, err := doPost(baseURL+"/api/v1/wrong-questions", token, dto.CreateWrongQuestionRequest{
+			SubjectID:       "highschool_math",
 			SourceType:      "manual",
 			Subject:         "math",
 			Chapter:         "test chapter",
@@ -552,6 +557,7 @@ func TestQuestionCRUD(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		url := fmt.Sprintf("%s/api/v1/wrong-questions/%d", baseURL, questionID)
 		resp, body, err := doPut(url, token, dto.UpdateWrongQuestionRequest{
+			SubjectID:       "highschool_math",
 			Subject:         "math_updated",
 			Chapter:         "updated chapter",
 			QuestionJSON:    dto.QuestionJSON{QuestionCore: "updated core", StandardSolution: "updated solution"},
@@ -589,6 +595,7 @@ func TestQuestionCRUD(t *testing.T) {
 
 	t.Run("similar_by_json", func(t *testing.T) {
 		resp, _, err := doPost(baseURL+"/api/v1/wrong-questions/similar-by-json", token, dto.SimilarByJSONRequest{
+			SubjectID:    "highschool_math",
 			QuestionJSON: dto.QuestionJSON{QuestionCore: "test query"},
 			Tags:         dto.TagGroups{KnowledgePoints: []string{"极限"}},
 			VectorType:   "semantic",
@@ -619,6 +626,7 @@ func TestQuestionCRUD(t *testing.T) {
 
 	t.Run("create noauth", func(t *testing.T) {
 		resp, _, err := doPost(baseURL+"/api/v1/wrong-questions", "", dto.CreateWrongQuestionRequest{
+			SubjectID:       "highschool_math",
 			SourceType:      "manual",
 			Subject:         "math",
 			QuestionJSON:    dto.QuestionJSON{QuestionCore: "test"},
@@ -878,7 +886,7 @@ func TestAI(t *testing.T) {
 	})
 
 	t.Run("list chapters", func(t *testing.T) {
-		resp, body, err := doGet(baseURL+"/api/v1/ai/chapters", token)
+		resp, body, err := doGet(baseURL+"/api/v1/ai/chapters?subject_id=math_grad", token)
 		if err != nil {
 			t.Fatalf("list chapters: %v", err)
 		}
@@ -1255,7 +1263,7 @@ func TestProtectedEndpointsNoAuth(t *testing.T) {
 		{"POST", "/api/v1/files/images"},
 		{"POST", "/api/v1/ocr/wrong-question-json"},
 		{"GET", "/api/v1/ai/model-providers"},
-		{"GET", "/api/v1/ai/chapters"},
+		{"GET", "/api/v1/ai/chapters?subject_id=math_grad"},
 		{"GET", "/api/v1/ai/model-providers/mockai/models"},
 		{"POST", "/api/v1/ai/analyze-wrong-question"},
 		{"GET", "/api/v1/wrong-questions"},

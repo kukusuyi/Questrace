@@ -81,7 +81,7 @@ func TestReviewLifecycle(t *testing.T) {
 		t.Fatal("missing question")
 	}
 	q.MasteryStatus = "mastered"
-	if _, err = repo.Update(q); err != nil {
+	if q, err = repo.Update(q); err != nil {
 		t.Fatal(err)
 	}
 	var streak int
@@ -91,7 +91,7 @@ func TestReviewLifecycle(t *testing.T) {
 		t.Fatal("manual reset missing")
 	}
 	q.QuestionCore = "new"
-	if _, err = repo.Update(q); err != nil {
+	if q, err = repo.Update(q); err != nil {
 		t.Fatal(err)
 	}
 	var after int64

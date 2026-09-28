@@ -1,24 +1,19 @@
 import 'json_helpers.dart';
 
 class LoginPayload {
-  const LoginPayload({
-    required this.username,
-    required this.password,
-  });
+  const LoginPayload({required this.username, required this.password});
 
   final String username;
   final String password;
 
   Map<String, dynamic> toJson() {
-    return {
-      'username': username,
-      'password': password,
-    };
+    return {'username': username, 'password': password};
   }
 }
 
 class RegisterPayload {
   const RegisterPayload({
+    required this.educationStage,
     required this.username,
     required this.password,
     required this.email,
@@ -27,12 +22,14 @@ class RegisterPayload {
   final String username;
   final String password;
   final String email;
+  final String educationStage;
 
   Map<String, dynamic> toJson() {
     return {
       'username': username,
       'password': password,
       'email': email,
+      'education_stage': educationStage,
     };
   }
 }
@@ -57,10 +54,6 @@ class AuthSession {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'user_id': userId,
-      'username': username,
-      'token': token,
-    };
+    return {'user_id': userId, 'username': username, 'token': token};
   }
 }

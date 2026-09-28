@@ -36,36 +36,10 @@
                     />
                 </el-form-item>
 
-                <details class="secondary-fields"><summary>分类与掌握状态</summary>
-                <div class="form-row">
-                    <el-form-item label="学科" class="grow">
-                        <el-input
-                            v-model="model.subject"
-                            placeholder="例如：math / 高等数学"
-                        />
-                    </el-form-item>
-                    <el-form-item label="章节" class="grow">
-                        <el-select
-                            v-if="chapterOptions.length"
-                            v-model="model.chapter"
-                            :placeholder="chapterPlaceholder"
-                            @change="emit('chapter-change', model.chapter)"
-                        >
-                            <el-option
-                                v-for="item in chapterOptions"
-                                :key="item.value"
-                                :label="item.label"
-                                :value="item.value"
-                            />
-                        </el-select>
-                        <el-input
-                            v-else
-                            v-model="model.chapter"
-                            placeholder="例如：函数极限与连续"
-                            @input="emit('chapter-change', model.chapter)"
-                        />
-                    </el-form-item>
-                </div>
+                <details class="secondary-fields" open><summary>分类与掌握状态</summary>
+                <SubjectPicker :model="model" @change="emit('chapter-change', model.chapter)" />
+                <p v-if="model.warnings?.length" role="alert">{{ model.warnings.join('；') }}</p>
+                <el-checkbox v-if="showAnalysisFields && model.analysis_stale" v-model="model.analysis_confirmed">我已复核现有标签和摘要，适用于当前学科</el-checkbox>
 
                 <div class="form-row">
                     <el-form-item label="来源类型" class="grow">
@@ -121,7 +95,7 @@
                                 default-first-option
                             >
                                 <el-option
-                                    v-for="item in tagOptions.knowledge_points ||
+                                    v-for="item in scopedTagOptions.knowledge_points ||
                                     []"
                                     :key="item"
                                     :label="item"
@@ -139,7 +113,7 @@
                                 default-first-option
                             >
                                 <el-option
-                                    v-for="item in tagOptions.problem_type ||
+                                    v-for="item in scopedTagOptions.problem_type ||
                                     []"
                                     :key="item"
                                     :label="item"
@@ -159,7 +133,7 @@
                                 default-first-option
                             >
                                 <el-option
-                                    v-for="item in tagOptions.method || []"
+                                    v-for="item in scopedTagOptions.method || []"
                                     :key="item"
                                     :label="item"
                                     :value="item"
@@ -176,7 +150,7 @@
                                 default-first-option
                             >
                                 <el-option
-                                    v-for="item in tagOptions.mistake_reason ||
+                                    v-for="item in scopedTagOptions.mistake_reason ||
                                     []"
                                     :key="item"
                                     :label="item"
@@ -225,6 +199,9 @@
 </template>
 
 <script setup lang="ts">
+import {ref,watch} from 'vue'
+import {listTags} from '@/api/tag.api'
+import SubjectPicker from '@/components/SubjectPicker/index.vue'
 import SolutionOCR from '@/components/SolutionOCR/index.vue'
 import ImagePreviewer from "@/components/ImagePreviewer/index.vue";
 import LatexRenderer from "@/components/LatexRenderer/index.vue";
@@ -235,7 +212,7 @@ const emit = defineEmits<{
     "chapter-change": [value: string];
 }>();
 
-withDefaults(
+const props=withDefaults(
     defineProps<{
         model: QuestionDraft;
         showAnalysisFields?: boolean;
@@ -253,6 +230,15 @@ withDefaults(
         chapterPlaceholder: "例如：函数极限与连续",
     },
 );
+const scopedTagOptions=ref<Partial<Record<keyof QuestionDraft['tags'],string[]>>>({})
+let tagRequest=0
+watch(()=>[props.model.subject_id,props.model.course_id],async()=>{
+ const request=++tagRequest;scopedTagOptions.value={};if(!props.model.subject_id)return
+ try{const r=await listTags({subject_id:props.model.subject_id,course_id:props.model.course_id});if(request!==tagRequest)return
+ const map:Record<string,keyof QuestionDraft['tags']>={knowledge_point:'knowledge_points',problem_type:'problem_type',method:'method',mistake_reason:'mistake_reason'}
+ for(const tag of r.list){const key=map[tag.tag_type];if(key)(scopedTagOptions.value[key]??=[]).push(tag.tag_name)}
+ }catch{/* 手动标签仍可编辑。 */}
+},{immediate:true})
 </script>
 
 <style scoped>

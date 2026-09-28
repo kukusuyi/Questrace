@@ -24,17 +24,30 @@ func (s *VectorService) Delete(id int64) error {
 func (s *VectorService) Search(base model.WrongQuestion, kind string, limit int, filter bool) ([]SimilarSearchItem, error) {
 	return s.Local.Search(base, kind, limit, filter)
 }
+
+const vectorFormatVersion = 2
+
 func buildSearchText(base model.WrongQuestion, vectorType string) string {
+	var body string
 	if vectorType == string(enum.VectorTypeMistake) {
-		if strings.TrimSpace(base.MistakeSummary) != "" {
-			return strings.TrimSpace(base.MistakeSummary)
+		if strings.TrimSpace(base.WrongSolution) == "" {
+			return ""
 		}
-		return strings.TrimSpace(base.WrongSolution)
+		body = base.WrongSolution
+		if !base.AnalysisStale && strings.TrimSpace(base.MistakeSummary) != "" {
+			body = base.MistakeSummary
+		}
+	} else {
+		body = base.QuestionCore
+		if !base.AnalysisStale && strings.TrimSpace(base.SemanticSummary) != "" {
+			body = base.SemanticSummary
+		}
 	}
-	if strings.TrimSpace(base.SemanticSummary) != "" {
-		return strings.TrimSpace(base.SemanticSummary)
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return ""
 	}
-	return strings.TrimSpace(base.QuestionCore)
+	return "学科：" + base.Subject + " [" + base.SubjectID + "]\n课程：" + base.CourseID + "\n章节：" + base.Chapter + "\n" + body
 }
 
 func hashText(value string) string {

@@ -18,7 +18,7 @@ func NewTagHandler(service *service.TagService) *TagHandler {
 }
 
 func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
-	response, err := h.service.List(r.Context(), r.URL.Query().Get("tag_type"), r.URL.Query().Get("keyword"))
+	response, err := h.service.List(r.Context(), r.URL.Query().Get("tag_type"), r.URL.Query().Get("keyword"), r.URL.Query().Get("subject_id"), r.URL.Query().Get("course_id"))
 	if err != nil {
 		dto.HandleError(w, err)
 		return

@@ -68,7 +68,7 @@ async function saveDirectly() {
  if(submitting.value)return;
  const d=draft.value;if(!d || !d.question_json.question_core.trim() || !jsonValid.value){ElMessage.warning('请填写有效的题目主干');return}
  submitting.value=true
- try {const result=await createQuestion({source_type:d.source_type,source_image_id:d.source_image_id,source_image_url:d.source_image_url,subject:d.subject,chapter:d.chapter,question_json:d.question_json,tags:d.tags,semantic_summary:d.semantic_summary||d.question_json.question_core,mistake_summary:d.mistake_summary,difficulty_level:d.difficulty_level,mastery_status:d.mastery_status});draftStore.resetDraft();router.push(`/questions/${result.question_id}`)}catch(e){errorMessage.value=getErrorMessage(e,'保存失败')}finally{submitting.value=false}
+ try {const result=await createQuestion({source_type:d.source_type,source_image_id:d.source_image_id,source_image_url:d.source_image_url,subject:d.subject,subject_id:d.subject_id,course_id:d.course_id,analysis_stale:d.analysis_stale,analysis_confirmed:d.analysis_confirmed,chapter:d.chapter,question_json:d.question_json,tags:d.tags,semantic_summary:d.semantic_summary||d.question_json.question_core,mistake_summary:d.mistake_summary,difficulty_level:d.difficulty_level,mastery_status:d.mastery_status});draftStore.resetDraft();router.push(`/questions/${result.question_id}`)}catch(e){errorMessage.value=getErrorMessage(e,'保存失败')}finally{submitting.value=false}
 }
 
 async function analyzeDraft() {
@@ -104,8 +104,10 @@ async function analyzeDraft() {
 
     try {
         const result = await analyzeWrongQuestion({
+            subject_id:current.subject_id,course_id:current.course_id,
             provider_name: current.provider_name,
             model_name: current.model_name,
+            chapter:current.chapter_locked?current.chapter:undefined,
             question_json: current.question_json,
         });
 

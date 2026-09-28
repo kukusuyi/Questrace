@@ -94,6 +94,7 @@ async function loadDetail() {
       source_image_id: detail.source_image_id,
       source_image_url: detail.source_image_url,
       subject: detail.subject,
+ subject_id:detail.subject_id,course_id:detail.course_id,classification_status:detail.classification_status,analysis_stale:detail.analysis_stale,revision:detail.revision,
       chapter: detail.chapter,
       chapter_locked: false,
       question_json: {
@@ -123,8 +124,10 @@ async function saveChanges() {
   }
 
   const payload: UpdateWrongQuestionPayload = {
+    revision:draft.value.revision,
     question_json: draft.value.question_json,
     subject: draft.value.subject,
+ subject_id:draft.value.subject_id,course_id:draft.value.course_id,classification_status:draft.value.classification_status,analysis_stale:draft.value.analysis_stale,analysis_confirmed:draft.value.analysis_confirmed,
     chapter: draft.value.chapter,
     tags: draft.value.tags,
     source_image_id: draft.value.source_image_id,

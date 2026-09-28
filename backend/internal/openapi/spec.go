@@ -33,6 +33,7 @@ func BuildSpec() map[string]any {
 	}
 
 	addLocalPaths(paths)
+	addClassificationReviewPaths(paths)
 	applySecurity(paths)
 
 	return spec
@@ -49,7 +50,7 @@ func securitySchemes() map[string]any {
 	}
 }
 
-func buildPaths() map[string]any {
+func basePaths() map[string]any {
 	return map[string]any{
 		"/healthz": map[string]any{
 			"get": operation("System", "healthz", "健康检查", "返回服务健康状态。", nil, successNoEnvelope("text/plain", "ok")),
@@ -192,7 +193,7 @@ func buildPaths() map[string]any {
 				"AI",
 				"listAIChapters",
 				"获取章节列表",
-				"动态扫描后端本地章节提示词目录，返回可选章节列表。",
+				"按学科与课程返回可选章节；未提供学科时返回空列表。",
 				nil,
 				successRef("#/components/schemas/AIChapterListResponse"),
 			),
@@ -322,7 +323,7 @@ func buildPaths() map[string]any {
 	}
 }
 
-func schemas() map[string]any {
+func baseSchemas() map[string]any {
 	return map[string]any{
 		"APIResponse": objectSchema(
 			field("code", map[string]any{"type": "integer", "example": 0}),

@@ -36,14 +36,16 @@ class AIRepository {
     );
   }
 
-  Future<AIChapterListResponse> listChapters() async {
+  Future<AIChapterListResponse> listChapters({
+    String subjectId = '',
+    String courseId = '',
+  }) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/api/v1/ai/chapters',
+      queryParameters: {'subject_id': subjectId, 'course_id': courseId},
     );
 
-    return AIChapterListResponse.fromJson(
-      response.data ?? <String, dynamic>{},
-    );
+    return AIChapterListResponse.fromJson(response.data ?? <String, dynamic>{});
   }
 
   Future<RecognizedWrongQuestion> recognizeWrongQuestion({
@@ -53,11 +55,7 @@ class AIRepository {
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/api/v1/ocr/wrong-question-json',
-      data: {
-        'image_url': imageUrl,
-        'image_id': imageId,
-        'purpose': purpose,
-      },
+      data: {'image_url': imageUrl, 'image_id': imageId, 'purpose': purpose},
       options: Options(
         sendTimeout: const Duration(minutes: 5),
         receiveTimeout: const Duration(minutes: 5),

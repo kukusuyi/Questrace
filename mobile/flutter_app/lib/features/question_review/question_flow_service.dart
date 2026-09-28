@@ -23,7 +23,9 @@ class QuestionFlowService {
     draftController.markStatus(DraftStatus.ocrProcessing);
     await draftController.flush();
 
-    final result = await _ref.read(aiRepositoryProvider).recognizeWrongQuestion(
+    final result = await _ref
+        .read(aiRepositoryProvider)
+        .recognizeWrongQuestion(
           imageUrl: image.imageUrl,
           imageId: image.imageId,
         );
@@ -45,10 +47,14 @@ class QuestionFlowService {
     draftController.markStatus(DraftStatus.aiProcessing);
     await draftController.flush();
 
-    final result = await _ref.read(aiRepositoryProvider).analyzeWrongQuestion(
+    final result = await _ref
+        .read(aiRepositoryProvider)
+        .analyzeWrongQuestion(
           AnalyzeWrongQuestionPayload(
-            providerName:
-                draft.providerName.isEmpty ? null : draft.providerName,
+            classification: draft.classification,
+            providerName: draft.providerName.isEmpty
+                ? null
+                : draft.providerName,
             modelName: draft.modelName.isEmpty ? null : draft.modelName,
             chapter: draft.chapterLocked && draft.chapter.isNotEmpty
                 ? draft.chapter

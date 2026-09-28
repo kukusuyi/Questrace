@@ -1,3 +1,4 @@
+import '../../shared/widgets/subject_picker.dart';
 import '../../shared/widgets/solution_ocr_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +11,6 @@ import '../../shared/models/common_models.dart';
 import '../../shared/widgets/latex_review_field.dart';
 import '../../shared/widgets/remote_image_card.dart';
 import '../question_create/question_draft_controller.dart';
-import 'ai_repository.dart';
 import 'question_flow_service.dart';
 
 class OcrReviewPage extends ConsumerStatefulWidget {
@@ -24,14 +24,12 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
   final _questionCoreController = TextEditingController();
   final _standardSolutionController = TextEditingController();
   final _wrongSolutionController = TextEditingController();
-  late Future<List<String>> _chaptersFuture;
   bool _hydrated = false;
   bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _chaptersFuture = _loadChapters();
   }
 
   @override
@@ -50,9 +48,7 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
     if (draft == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('OCR 确认')),
-        body: const Center(
-          child: Text('当前没有可确认的 OCR 草稿。'),
-        ),
+        body: const Center(child: Text('当前没有可确认的 OCR 草稿。')),
       );
     }
 
@@ -83,8 +79,8 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
                   Text(
                     'OCR 置信度：${draft.ocrContext?.ocrConfidence.label ?? '未知'}',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if ((draft.ocrContext?.uncertainParts ?? const <String>[])
                       .isNotEmpty) ...[
@@ -115,8 +111,9 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
                     onChanged: (_) => _persistDraft(),
                   ),
                   SolutionOcrButton(
-                      controller: _standardSolutionController,
-                      onApplied: _persistDraft),
+                    controller: _standardSolutionController,
+                    onApplied: _persistDraft,
+                  ),
                   const SizedBox(height: 12),
                   LatexReviewField(
                     title: '错误解',
@@ -126,59 +123,16 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
                     onChanged: (_) => _persistDraft(),
                   ),
                   const SizedBox(height: 12),
-                  FutureBuilder<List<String>>(
-                    future: _chaptersFuture,
-                    builder: (context, snapshot) {
-                      final chapters = snapshot.data ?? const <String>[];
-                      final chapterItems = <DropdownMenuItem<String>>[
-                        const DropdownMenuItem(
-                          value: '',
-                          child: Text('自动判断章节'),
-                        ),
-                        ...chapters.map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(item),
-                          ),
-                        ),
-                      ];
-
-                      return Column(
-                        children: [
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                _matchChapterValue(draft.chapter, chapters),
-                            decoration: const InputDecoration(
-                              labelText: '章节',
-                            ),
-                            items: chapterItems,
-                            onChanged: (value) {
-                              _updateChapter(value ?? '');
-                            },
-                          ),
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: LinearProgressIndicator(minHeight: 2),
-                            ),
-                          if (snapshot.hasError)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  describeError(snapshot.error!),
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
+                  SubjectPicker(
+                    suggestedSubject: draft.suggestedSubject,
+                    onSuggestionDismissed: () => ref
+                        .read(questionDraftControllerProvider.notifier)
+                        .dismissSuggestedSubject(),
+                    value: draft.classification,
+                    chapter: draft.chapter,
+                    onChanged: (v, c) => ref
+                        .read(questionDraftControllerProvider.notifier)
+                        .updateClassification(v, c),
                   ),
                 ],
               ),
@@ -187,8 +141,9 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
           const SizedBox(height: 16),
           const SizedBox(height: 16),
           FilledButton(
-              onPressed: _submitting ? null : _continueEditing,
-              child: const Text('确认并整理内容')),
+            onPressed: _submitting ? null : _continueEditing,
+            child: const Text('确认并整理内容'),
+          ),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _submitting
@@ -209,14 +164,16 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
     final controller = ref.read(questionDraftControllerProvider.notifier);
     final draft = ref.read(questionDraftControllerProvider)!;
     controller.updateBasicFields(
-        subject: draft.subject,
-        chapter: draft.chapter,
-        questionJson: QuestionJson(
-            questionCore: _questionCoreController.text,
-            standardSolution: _standardSolutionController.text,
-            wrongSolution: _wrongSolutionController.text),
-        flowMode: DraftFlowMode.manual,
-        sourceType: SourceType.image);
+      subject: draft.subject,
+      chapter: draft.chapter,
+      questionJson: QuestionJson(
+        questionCore: _questionCoreController.text,
+        standardSolution: _standardSolutionController.text,
+        wrongSolution: _wrongSolutionController.text,
+      ),
+      flowMode: DraftFlowMode.manual,
+      sourceType: SourceType.image,
+    );
     controller.markStatus(DraftStatus.draft);
     context.go('/questions/create');
   }
@@ -238,7 +195,9 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
       return;
     }
 
-    ref.read(questionDraftControllerProvider.notifier).updateBasicFields(
+    ref
+        .read(questionDraftControllerProvider.notifier)
+        .updateBasicFields(
           subject: draft.subject,
           chapter: draft.chapter,
           questionJson: QuestionJson(
@@ -248,30 +207,6 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
           ),
           flowMode: draft.flowMode,
           sourceType: draft.sourceType,
-        );
-  }
-
-  Future<List<String>> _loadChapters() async {
-    final response = await ref.read(aiRepositoryProvider).listChapters();
-    return response.list;
-  }
-
-  String _matchChapterValue(String current, List<String> chapters) {
-    if (current.isEmpty) {
-      return '';
-    }
-    for (final item in chapters) {
-      if (item == current) {
-        return current;
-      }
-    }
-    return '';
-  }
-
-  void _updateChapter(String chapter) {
-    ref.read(questionDraftControllerProvider.notifier).updateChapterSelection(
-          chapter: chapter,
-          locked: chapter.trim().isNotEmpty,
         );
   }
 
@@ -312,9 +247,9 @@ class _OcrReviewPageState extends ConsumerState<OcrReviewPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _confirmDiscard() {

@@ -2,7 +2,7 @@ import { httpDelete, httpGet, httpPost } from './http'
 
 import type { CreateTagPayload, TagItem, TagListResponse } from '@/types/tag'
 
-export function listTags(params?: { tag_type?: string; keyword?: string }) {
+export function listTags(params?: { tag_type?: string; keyword?: string; subject_id?:string; course_id?:string }) {
   return httpGet<TagListResponse>('/api/v1/tags', params)
 }
 

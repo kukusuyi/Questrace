@@ -16,10 +16,14 @@ class TagRepository {
   Future<TagListResponse> listTags({
     TagType? tagType,
     String keyword = '',
+    String subjectId = '',
+    String courseId = '',
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/api/v1/tags',
       queryParameters: {
+        if (subjectId.isNotEmpty) 'subject_id': subjectId,
+        if (courseId.isNotEmpty) 'course_id': courseId,
         if (tagType != null) 'tag_type': tagType.value,
         if (keyword.trim().isNotEmpty) 'keyword': keyword.trim(),
       },
@@ -34,10 +38,7 @@ class TagRepository {
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/api/v1/tags',
-      data: {
-        'tag_name': tagName.trim(),
-        'tag_type': tagType.value,
-      },
+      data: {'tag_name': tagName.trim(), 'tag_type': tagType.value},
     );
 
     return TagItem.fromJson(response.data ?? <String, dynamic>{});

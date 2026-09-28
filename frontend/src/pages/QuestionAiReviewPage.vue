@@ -117,7 +117,8 @@ async function reanalyze() {
   reanalyzing.value = true
   try {
     const result = await analyzeWrongQuestion({
-      provider_name: draft.value.provider_name,
+      subject_id:draft.value.subject_id,course_id:draft.value.course_id,
+            provider_name: draft.value.provider_name,
       model_name: draft.value.model_name,
       chapter:
         draft.value.flow_mode === 'upload' && draft.value.chapter_locked
@@ -145,6 +146,7 @@ function toCreatePayload(): CreateWrongQuestionPayload | null {
     source_image_id: draft.value.source_image_id,
     source_image_url: draft.value.source_image_url,
     subject: draft.value.subject,
+ subject_id:draft.value.subject_id,course_id:draft.value.course_id,classification_status:draft.value.classification_status,analysis_stale:draft.value.analysis_stale,analysis_confirmed:draft.value.analysis_confirmed,
     chapter: draft.value.chapter,
     question_json: draft.value.question_json,
     tags: draft.value.tags,

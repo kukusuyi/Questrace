@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../shared/models/ai_models.dart';
+import '../../shared/models/classification.dart';
 import '../../shared/models/common_models.dart';
 import '../../shared/models/file_models.dart';
 import '../../shared/models/question_models.dart';
@@ -8,8 +9,8 @@ import 'question_draft_repository.dart';
 
 final questionDraftControllerProvider =
     NotifierProvider<QuestionDraftController, QuestionDraft?>(
-  QuestionDraftController.new,
-);
+      QuestionDraftController.new,
+    );
 
 class QuestionDraftController extends Notifier<QuestionDraft?> {
   Future<void> _pendingPersistence = Future<void>.value();
@@ -34,6 +35,25 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
     _commit(QuestionDraft.emptyUpload(image));
   }
 
+  void dismissSuggestedSubject() {
+    if (state != null) _commit(state!.copyWith(suggestedSubject: ''));
+  }
+
+  void updateClassification(Classification value, String chapter) {
+    final current = state ?? QuestionDraft.emptyManual();
+    _commit(
+      current.copyWith(
+        classification: value,
+        suggestedSubject: value.subjectId.isNotEmpty
+            ? ''
+            : current.suggestedSubject,
+        subject: value.subjectName.isEmpty ? '待分类' : value.subjectName,
+        chapter: chapter,
+        chapterLocked: chapter.isNotEmpty,
+      ),
+    );
+  }
+
   void updateBasicFields({
     required String subject,
     required String chapter,
@@ -41,7 +61,8 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
     DraftFlowMode? flowMode,
     SourceType? sourceType,
   }) {
-    final current = state ??
+    final current =
+        state ??
         const QuestionDraft(
           sourceType: SourceType.manual,
           flowMode: DraftFlowMode.manual,
@@ -73,18 +94,10 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
     );
   }
 
-  void updateChapterSelection({
-    required String chapter,
-    required bool locked,
-  }) {
+  void updateChapterSelection({required String chapter, required bool locked}) {
     final current = state ?? QuestionDraft.emptyManual();
 
-    _commit(
-      current.copyWith(
-        chapter: chapter,
-        chapterLocked: locked,
-      ),
-    );
+    _commit(current.copyWith(chapter: chapter, chapterLocked: locked));
   }
 
   Future<void> discardAnalysis() async {
@@ -92,8 +105,9 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
     final repository = ref.read(questionDraftRepositoryProvider);
     final old = repository.readAnalysisSnapshot();
     if (old != null) {
-      _commit(old.copyWith(
-          status: DraftStatus.draft, flowMode: DraftFlowMode.manual));
+      _commit(
+        old.copyWith(status: DraftStatus.draft, flowMode: DraftFlowMode.manual),
+      );
     }
     await repository.clearAnalysisSnapshot();
     await flush();
@@ -106,11 +120,19 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
 
     _commit(
       current.copyWith(
-        chapter: response.chapter.isEmpty ? current.chapter : response.chapter,
+        warnings: response.warnings,
+        suggestedSubject: response.suggestedSubject,
+        classification: response.classification.copyWith(
+          analysisStale: false,
+          analysisConfirmed: true,
+        ),
+        chapter: response.chapter,
         tags: response.tags,
         semanticSummary: response.semanticSummary,
         mistakeSummary: response.mistakeSummary,
-        subject: current.subject.isEmpty ? 'math' : null,
+        subject: response.classification.subjectName.isEmpty
+            ? '待分类'
+            : response.classification.subjectName,
         status: DraftStatus.aiReviewing,
       ),
     );
@@ -146,12 +168,7 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
   }) {
     final current = state ?? QuestionDraft.emptyManual();
 
-    _commit(
-      current.copyWith(
-        providerName: providerName,
-        modelName: modelName,
-      ),
-    );
+    _commit(current.copyWith(providerName: providerName, modelName: modelName));
   }
 
   void markStatus(DraftStatus status) {
@@ -170,22 +187,19 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
   void clear() {
     state = null;
     final repository = ref.read(questionDraftRepositoryProvider);
-    _enqueuePersistence(
-      () => repository.clearDraft(),
-    );
+    _enqueuePersistence(() => repository.clearDraft());
   }
 
   void _commit(QuestionDraft draft) {
     state = draft;
     final repository = ref.read(questionDraftRepositoryProvider);
-    _enqueuePersistence(
-      () => repository.saveDraft(draft),
-    );
+    _enqueuePersistence(() => repository.saveDraft(draft));
   }
 
   void _enqueuePersistence(Future<void> Function() action) {
-    _pendingPersistence =
-        _pendingPersistence.catchError((_) {}).then((_) => action());
+    _pendingPersistence = _pendingPersistence
+        .catchError((_) {})
+        .then((_) => action());
   }
 
   QuestionDraft? _normalizeRecoveredDraft(QuestionDraft? draft) {
@@ -195,8 +209,7 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
 
     final normalizedStatus = switch (draft.status) {
       DraftStatus.ocrProcessing ||
-      DraftStatus.aiProcessing =>
-        DraftStatus.ocrReviewing,
+      DraftStatus.aiProcessing => DraftStatus.ocrReviewing,
       _ => draft.status,
     };
 
@@ -206,9 +219,7 @@ class QuestionDraftController extends Notifier<QuestionDraft?> {
 
     final normalizedDraft = draft.copyWith(status: normalizedStatus);
     final repository = ref.read(questionDraftRepositoryProvider);
-    _enqueuePersistence(
-      () => repository.saveDraft(normalizedDraft),
-    );
+    _enqueuePersistence(() => repository.saveDraft(normalizedDraft));
     return normalizedDraft;
   }
 }

@@ -21,7 +21,13 @@ var schema string
 //go:embed migration_v2.sql
 var migrationV2 string
 
-const Version = 2
+//go:embed migration_v3.sql
+var migrationV3 string
+
+//go:embed migration_v4.sql
+var migrationV4 string
+
+const Version = 4
 
 func init() {
 	sqliteDriver.MustRegisterDeterministicScalarFunction("search_normalize", 1, func(_ *sqliteDriver.FunctionContext, args []driver.Value) (driver.Value, error) {
@@ -111,6 +117,16 @@ func migrate(db *sql.DB, dir string) error {
 	}
 	if version < 2 {
 		if _, err = tx.Exec(migrationV2); err != nil {
+			return err
+		}
+	}
+	if version < 3 {
+		if _, err = tx.Exec(migrationV3); err != nil {
+			return err
+		}
+	}
+	if version < 4 {
+		if _, err = tx.Exec(migrationV4); err != nil {
 			return err
 		}
 	}

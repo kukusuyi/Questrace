@@ -1,8 +1,10 @@
+import 'classification.dart';
 import 'json_helpers.dart';
 import 'question_models.dart';
 
 class AnalyzeWrongQuestionPayload {
   const AnalyzeWrongQuestionPayload({
+    this.classification = const Classification(),
     required this.questionJson,
     this.providerName,
     this.modelName,
@@ -10,6 +12,7 @@ class AnalyzeWrongQuestionPayload {
     this.ocrContext,
   });
 
+  final Classification classification;
   final String? providerName;
   final String? modelName;
   final String? chapter;
@@ -18,6 +21,8 @@ class AnalyzeWrongQuestionPayload {
 
   Map<String, dynamic> toJson() {
     return {
+      'subject_id': classification.subjectId,
+      'course_id': classification.courseId,
       if (providerName != null && providerName!.isNotEmpty)
         'provider_name': providerName,
       if (modelName != null && modelName!.isNotEmpty) 'model_name': modelName,
@@ -30,12 +35,18 @@ class AnalyzeWrongQuestionPayload {
 
 class AnalyzeWrongQuestionResponse {
   const AnalyzeWrongQuestionResponse({
+    this.warnings = const [],
+    this.suggestedSubject = '',
+    this.classification = const Classification(),
     required this.chapter,
     required this.tags,
     required this.semanticSummary,
     required this.mistakeSummary,
   });
 
+  final Classification classification;
+  final List<String> warnings;
+  final String suggestedSubject;
   final String chapter;
   final TagGroups tags;
   final String semanticSummary;
@@ -43,6 +54,9 @@ class AnalyzeWrongQuestionResponse {
 
   factory AnalyzeWrongQuestionResponse.fromJson(Map<String, dynamic> json) {
     return AnalyzeWrongQuestionResponse(
+      classification: Classification.fromJson(json),
+      warnings: asStringList(json['warnings']),
+      suggestedSubject: asString(json['suggested_subject']),
       chapter: asString(json['chapter']),
       tags: TagGroups.fromJson(asJsonMap(json['tags'])),
       semanticSummary: asString(json['semantic_summary']),
@@ -72,9 +86,7 @@ class AIProviderItem {
 }
 
 class AIProviderListResponse {
-  const AIProviderListResponse({
-    required this.list,
-  });
+  const AIProviderListResponse({required this.list});
 
   final List<AIProviderItem> list;
 
@@ -86,16 +98,12 @@ class AIProviderListResponse {
 }
 
 class AIProviderModelItem {
-  const AIProviderModelItem({
-    required this.modelName,
-  });
+  const AIProviderModelItem({required this.modelName});
 
   final String modelName;
 
   factory AIProviderModelItem.fromJson(Map<String, dynamic> json) {
-    return AIProviderModelItem(
-      modelName: asString(json['model_name']),
-    );
+    return AIProviderModelItem(modelName: asString(json['model_name']));
   }
 }
 
@@ -117,15 +125,11 @@ class AIProviderModelListResponse {
 }
 
 class AIChapterListResponse {
-  const AIChapterListResponse({
-    required this.list,
-  });
+  const AIChapterListResponse({required this.list});
 
   final List<String> list;
 
   factory AIChapterListResponse.fromJson(Map<String, dynamic> json) {
-    return AIChapterListResponse(
-      list: asStringList(json['list']),
-    );
+    return AIChapterListResponse(list: asStringList(json['list']));
   }
 }

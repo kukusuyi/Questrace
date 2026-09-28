@@ -13,6 +13,8 @@ import (
 
 type authTestUserRepo struct{}
 
+func (r *authTestUserRepo) UpdateEducationStage(id int64, stage string) error { return nil }
+
 func (r *authTestUserRepo) Create(user model.User) (model.User, error) {
 	user.ID = 2
 	user.CreatedAt = time.Now()
@@ -62,5 +64,19 @@ func TestAuthServiceRegisterDisabled(t *testing.T) {
 	}
 	if appErr.Code != 40301 {
 		t.Fatalf("code=%d want=40301", appErr.Code)
+	}
+}
+
+func TestRegisterRequiresExplicitEducationStage(t *testing.T) {
+	s := NewAuthService(&authTestUserRepo{}, config.JWTConfig{Secret: "test-secret", ExpirationHours: 24}, config.AuthConfig{EnableRegistration: true})
+	for _, stage := range []string{"", "unknown"} {
+		if _, err := s.Register(dto.RegisterRequest{Username: "test", Email: "test@example.invalid", Password: "password123", EducationStage: stage}); err == nil {
+			t.Fatal("missing or invalid stage accepted", stage)
+		}
+	}
+	for _, stage := range []string{"university", "highschool"} {
+		if _, err := s.Register(dto.RegisterRequest{Username: "test", Email: "test@example.invalid", Password: "password123", EducationStage: stage}); err != nil {
+			t.Fatal(stage, err)
+		}
 	}
 }

@@ -1,6 +1,8 @@
 import type { OCRContext, QuestionJSON, TagGroups } from './question'
 
 export interface AnalyzeWrongQuestionPayload {
+ subject_id?:string
+ course_id?:string
   provider_name?: string
   model_name?: string
   chapter?: string
@@ -9,6 +11,12 @@ export interface AnalyzeWrongQuestionPayload {
 }
 
 export interface AnalyzeWrongQuestionResponse {
+ subject_id?:string
+ subject?:string
+ course_id?:string
+ classification_status?:string
+ suggested_subject?:string
+ warnings?:string[]
   chapter: string
   tags: TagGroups
   semantic_summary: string

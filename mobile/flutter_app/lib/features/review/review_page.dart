@@ -1,3 +1,5 @@
+import '../../shared/models/classification.dart';
+import '../../shared/widgets/subject_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +24,8 @@ class ReviewPage extends ConsumerStatefulWidget {
 
 class _ReviewPageState extends ConsumerState<ReviewPage> {
   final subject = TextEditingController(), note = TextEditingController();
+  Classification classification = const Classification(status: '');
+  String chapter = '';
   List<int> tags = [];
   String mastery = '';
   int count = 10;
@@ -95,7 +99,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
           .post(
             '/api/v1/reviews/sessions',
             data: {
-              'subject': subject.text.trim(),
+              'subject_id': classification.subjectId,
+              'course_id': classification.courseId,
+              'chapter': chapter,
               'tag_ids': tags,
               'mastery_status': mastery,
               'count': count,
@@ -234,6 +240,14 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                   ]),
                   if (q != null)
                     panel([
+                      Text(
+                        Classification.fromJson(q).label(
+                          q['subject'] as String? ?? '',
+                          q['chapter'] as String? ?? '',
+                        ),
+                      ),
+                      if (Classification.fromJson(q).statusLabel.isNotEmpty)
+                        Text(Classification.fromJson(q).statusLabel),
                       LatexBlock(q['question_core'] as String),
                       if ((q['source_image_url'] as String).isNotEmpty)
                         RemoteImageCard(
@@ -289,12 +303,20 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const Text('优先到期题目，再补未掌握和学习中的题目。连续三次到期答对后标为已掌握。'),
-                    TextField(
-                      controller: subject,
-                      decoration: const InputDecoration(labelText: '学科（可选）'),
+                    SubjectPicker(
+                      value: classification,
+                      chapter: chapter,
+                      filter: true,
+                      onChanged: (v, c) => setState(() {
+                        classification = v;
+                        chapter = c;
+                        tags = [];
+                      }),
                     ),
                     const SizedBox(height: 12),
                     TagFilter(
+                      subjectId: classification.subjectId,
+                      courseId: classification.courseId,
                       selected: tags,
                       onChanged: (v) => setState(() => tags = v),
                     ),

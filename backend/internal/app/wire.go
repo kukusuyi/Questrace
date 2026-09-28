@@ -59,6 +59,8 @@ func BuildHTTPHandler(cfg config.Config, appLogger *slog.Logger, db *sql.DB) (ht
 	}
 	vectorService := &service.VectorService{Local: &service.LocalVector{DB: db, Config: func() config.EmbeddingModelConfig { return cfg.EmbeddingModel }}}
 	questionService := service.NewQuestionService(questionRepo, fileService, tagService, vectorService)
+	aiService.Subjects = &service.SubjectService{DB: db}
+	questionService.Subjects = aiService.Subjects
 	mobileService := service.NewMobileService(cfg.MobileVersion, cfg.File)
 
 	handlers := httpx.V1Handlers{

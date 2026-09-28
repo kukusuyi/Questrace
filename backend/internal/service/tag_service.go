@@ -22,7 +22,7 @@ func NewTagService(repo repository.TagRepository) *TagService {
 	return &TagService{repo: repo}
 }
 
-func (s *TagService) List(ctx context.Context, tagType, keyword string) (dto.TagListResponse, error) {
+func (s *TagService) List(ctx context.Context, tagType, keyword string, scope ...string) (dto.TagListResponse, error) {
 	if err := validator.AllowEnum(tagType, "tag_type", enum.IsValidTagType); err != nil {
 		return dto.TagListResponse{}, err
 	}
@@ -31,7 +31,15 @@ func (s *TagService) List(ctx context.Context, tagType, keyword string) (dto.Tag
 		return dto.TagListResponse{}, err
 	}
 
+	subject, course := "", ""
+	if len(scope) > 0 {
+		subject = scope[0]
+	}
+	if len(scope) > 1 {
+		course = scope[1]
+	}
 	items, err := s.repo.List(repository.TagFilter{
+		SubjectID: subject, CourseID: course,
 		UserID:  userID,
 		TagType: tagType,
 		Keyword: keyword,

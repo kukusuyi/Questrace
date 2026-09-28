@@ -49,12 +49,12 @@ func TestCapacity(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	q, err := tx.Prepare("INSERT INTO wrong_question(id,user_id,subject,question_core,semantic_summary) VALUES(?,?,'math','question','summary')")
+	q, err := tx.Prepare("INSERT INTO wrong_question(id,user_id,subject,subject_id,classification_status,question_core,semantic_summary) VALUES(?,?,'考研数学','math_grad','confirmed','question','summary')")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer q.Close()
-	v, err := tx.Prepare("INSERT INTO local_vector(question_id,vector_type,model,dimension,content_hash,vector) VALUES(?,'semantic',?,1024,'test',?)")
+	v, err := tx.Prepare("INSERT INTO local_vector(question_id,vector_type,model,dimension,content_hash,vector,format_version) VALUES(?,'semantic',?,1024,'test',?,2)")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestCapacity(t *testing.T) {
 	}
 	p95 := timings[len(timings)*95/100]
 	start := time.Now()
-	found, err := local.Search(model.WrongQuestion{UserID: 1, Subject: "math", QuestionCore: "q"}, "semantic", 10, false)
+	found, err := local.Search(model.WrongQuestion{UserID: 1, Subject: "考研数学", SubjectID: "math_grad", ClassificationStatus: "confirmed", QuestionCore: "q"}, "semantic", 10, false)
 	search := time.Since(start)
 	if err != nil || len(found) != 10 {
 		t.Fatalf("search: %v %v", found, err)

@@ -11,17 +11,20 @@ import (
 )
 
 type QuestionFilter struct {
-	UserID          int64
-	Page            int
-	PageSize        int
-	Subject         string
-	Chapter         string
-	Keyword         string
-	TagNames        []string
-	TagIDs          []int64
-	MasteryStatus   string
-	DifficultyLevel int
-	SourceType      string
+	SubjectID            string
+	CourseID             string
+	ClassificationStatus string
+	UserID               int64
+	Page                 int
+	PageSize             int
+	Subject              string
+	Chapter              string
+	Keyword              string
+	TagNames             []string
+	TagIDs               []int64
+	MasteryStatus        string
+	DifficultyLevel      int
+	SourceType           string
 }
 
 type QuestionDashboardMetrics struct {
@@ -102,6 +105,15 @@ func (r *InMemoryQuestionRepository) List(filter QuestionFilter) ([]model.WrongQ
 			continue
 		}
 
+		if filter.SubjectID != "" && item.SubjectID != filter.SubjectID {
+			continue
+		}
+		if filter.CourseID != "" && item.CourseID != filter.CourseID {
+			continue
+		}
+		if filter.ClassificationStatus != "" && item.ClassificationStatus != filter.ClassificationStatus {
+			continue
+		}
 		if filter.Subject != "" && !strings.EqualFold(item.Subject, filter.Subject) {
 			continue
 		}
@@ -132,6 +144,9 @@ func (r *InMemoryQuestionRepository) List(filter QuestionFilter) ([]model.WrongQ
 			continue
 		}
 
+		if item.AnalysisStale && (len(filter.TagNames) > 0 || len(filter.TagIDs) > 0) {
+			continue
+		}
 		if len(filter.TagNames) > 0 && !containsAnyTag(item.Tags, filter.TagNames) {
 			continue
 		}

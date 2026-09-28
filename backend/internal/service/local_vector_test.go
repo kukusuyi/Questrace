@@ -26,7 +26,7 @@ func TestLocalVectorsOwnershipRetryAndRevision(t *testing.T) {
 	}
 	repo := repository.NewSQLiteQuestionRepository(db)
 	makeQ := func(uid int64) model.WrongQuestion {
-		q, e := repo.Create(model.WrongQuestion{UserID: uid, Subject: "math", QuestionCore: "question", SemanticSummary: "summary", MasteryStatus: "unmastered", SourceType: "manual", CreatedAt: time.Now(), UpdatedAt: time.Now()})
+		q, e := repo.Create(model.WrongQuestion{UserID: uid, Subject: "考研数学", SubjectID: "math_grad", ClassificationStatus: "confirmed", QuestionCore: "question", SemanticSummary: "summary", MasteryStatus: "unmastered", SourceType: "manual", CreatedAt: time.Now(), UpdatedAt: time.Now()})
 		if e != nil {
 			t.Fatal(e)
 		}
