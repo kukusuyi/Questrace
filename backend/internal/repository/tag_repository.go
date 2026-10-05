@@ -11,9 +11,11 @@ import (
 )
 
 type TagFilter struct {
-	UserID  int64
-	TagType string
-	Keyword string
+	SubjectID string
+	CourseID  string
+	UserID    int64
+	TagType   string
+	Keyword   string
 }
 
 type TagRepository interface {

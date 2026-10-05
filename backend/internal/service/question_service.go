@@ -17,6 +17,7 @@ import (
 )
 
 type QuestionService struct {
+	Subjects      *SubjectService
 	repo          repository.QuestionRepository
 	fileService   *FileService
 	tagService    *TagService
@@ -55,11 +56,6 @@ func (s *QuestionService) Create(ctx context.Context, req dto.CreateWrongQuestio
 		return dto.CreateWrongQuestionResponse{}, err
 	}
 
-	tags, err := s.tagService.Attach(userID, req.Tags)
-	if err != nil {
-		return dto.CreateWrongQuestionResponse{}, err
-	}
-
 	now := time.Now()
 	question := model.WrongQuestion{
 		UserID:           userID,
@@ -75,11 +71,21 @@ func (s *QuestionService) Create(ctx context.Context, req dto.CreateWrongQuestio
 		SourceType:       req.SourceType,
 		SourceImageID:    req.SourceImageID,
 		SourceImageURL:   strings.TrimSpace(req.SourceImageURL),
-		Tags:             tags,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
+	if err := s.Subjects.Apply(ctx, &question, req.SubjectID, req.CourseID, req.Chapter); err != nil {
+		return dto.CreateWrongQuestionResponse{}, err
+	}
+	tags, err := s.tagService.Attach(userID, req.Tags)
+	if err != nil {
+		return dto.CreateWrongQuestionResponse{}, err
+	}
+
+	question.Tags = tags
+	question.AnalysisStale = req.AnalysisStale && !req.AnalysisConfirmed
 	created, err := s.repo.Create(question)
 	if err != nil {
 		_ = s.tagService.Detach(userID, tags)
@@ -118,9 +124,10 @@ func (s *QuestionService) List(ctx context.Context, filter dto.ListQuestionFilte
 	}
 
 	items, total, err := s.repo.List(repository.QuestionFilter{
-		UserID:          userID,
-		Page:            filter.Page,
-		PageSize:        filter.PageSize,
+		UserID:    userID,
+		Page:      filter.Page,
+		PageSize:  filter.PageSize,
+		SubjectID: filter.SubjectID, CourseID: filter.CourseID, ClassificationStatus: filter.ClassificationStatus,
 		Subject:         filter.Subject,
 		Chapter:         filter.Chapter,
 		Keyword:         filter.Keyword,
@@ -137,11 +144,12 @@ func (s *QuestionService) List(ctx context.Context, filter dto.ListQuestionFilte
 	list := make([]dto.QuestionListItem, 0, len(items))
 	for _, item := range items {
 		list = append(list, dto.QuestionListItem{
-			QuestionID:      item.ID,
-			QuestionCore:    item.QuestionCore,
-			SourceImageID:   item.SourceImageID,
-			SourceImageURL:  item.SourceImageURL,
-			Subject:         item.Subject,
+			QuestionID:     item.ID,
+			QuestionCore:   item.QuestionCore,
+			SourceImageID:  item.SourceImageID,
+			SourceImageURL: item.SourceImageURL,
+			Subject:        item.Subject,
+			SubjectID:      item.SubjectID, CourseID: item.CourseID, ClassificationStatus: item.ClassificationStatus, AnalysisStale: item.AnalysisStale, Revision: item.Revision,
 			Chapter:         item.Chapter,
 			Tags:            toTagGroups(item.Tags),
 			DifficultyLevel: item.DifficultyLevel,
@@ -175,12 +183,13 @@ func (s *QuestionService) GetDetail(ctx context.Context, id int64) (dto.Question
 		SourceImageID:    question.SourceImageID,
 		SourceImageURL:   question.SourceImageURL,
 		Subject:          question.Subject,
-		Chapter:          question.Chapter,
-		Tags:             toTagGroups(question.Tags),
-		DifficultyLevel:  question.DifficultyLevel,
-		MasteryStatus:    question.MasteryStatus,
-		CreatedAt:        timeutil.Format(question.CreatedAt),
-		UpdatedAt:        timeutil.Format(question.UpdatedAt),
+		SubjectID:        question.SubjectID, CourseID: question.CourseID, ClassificationStatus: question.ClassificationStatus, AnalysisStale: question.AnalysisStale, Revision: question.Revision,
+		Chapter:         question.Chapter,
+		Tags:            toTagGroups(question.Tags),
+		DifficultyLevel: question.DifficultyLevel,
+		MasteryStatus:   question.MasteryStatus,
+		CreatedAt:       timeutil.Format(question.CreatedAt),
+		UpdatedAt:       timeutil.Format(question.UpdatedAt),
 	}, nil
 }
 
@@ -214,12 +223,13 @@ func (s *QuestionService) Export(ctx context.Context, ids []int64) ([]dto.Questi
 			SourceType:       question.SourceType,
 			SourceImageURL:   question.SourceImageURL,
 			Subject:          question.Subject,
-			Chapter:          question.Chapter,
-			Tags:             toTagGroups(question.Tags),
-			DifficultyLevel:  question.DifficultyLevel,
-			MasteryStatus:    question.MasteryStatus,
-			CreatedAt:        timeutil.Format(question.CreatedAt),
-			UpdatedAt:        timeutil.Format(question.UpdatedAt),
+			SubjectID:        question.SubjectID, CourseID: question.CourseID, ClassificationStatus: question.ClassificationStatus, AnalysisStale: question.AnalysisStale, Revision: question.Revision,
+			Chapter:         question.Chapter,
+			Tags:            toTagGroups(question.Tags),
+			DifficultyLevel: question.DifficultyLevel,
+			MasteryStatus:   question.MasteryStatus,
+			CreatedAt:       timeutil.Format(question.CreatedAt),
+			UpdatedAt:       timeutil.Format(question.UpdatedAt),
 		})
 	}
 
@@ -249,12 +259,23 @@ func (s *QuestionService) Update(ctx context.Context, id int64, req dto.UpdateWr
 		return dto.UpdateWrongQuestionResponse{}, err
 	}
 
-	tags, err := s.tagService.Replace(userID, current.Tags, req.Tags)
-	if err != nil {
+	if req.Revision > 0 && req.Revision != current.Revision {
+		return dto.UpdateWrongQuestionResponse{}, apperrors.New(409, 40901, "题目已被修改，请刷新后重试")
+	}
+	oldSubjectID, oldCourseID, oldStatus, oldChapter := current.SubjectID, current.CourseID, current.ClassificationStatus, current.Chapter
+	if err := s.Subjects.Apply(ctx, &current, req.SubjectID, req.CourseID, req.Chapter); err != nil {
 		return dto.UpdateWrongQuestionResponse{}, err
 	}
-
-	current.Subject = strings.TrimSpace(req.Subject)
+	if req.SubjectID == "" && oldSubjectID == "" && oldStatus == "legacy_pending" {
+		current.ClassificationStatus = oldStatus
+	}
+	current.AnalysisStale = current.AnalysisStale || oldSubjectID != current.SubjectID || oldCourseID != current.CourseID || oldChapter != current.Chapter || current.QuestionCore != strings.TrimSpace(req.QuestionJSON.QuestionCore) || current.WrongSolution != strings.TrimSpace(req.QuestionJSON.WrongSolution)
+	if req.AnalysisConfirmed {
+		current.AnalysisStale = false
+	}
+	if req.SubjectID == "" {
+		current.Subject = strings.TrimSpace(req.Subject)
+	}
 	current.Chapter = strings.TrimSpace(req.Chapter)
 	current.QuestionCore = strings.TrimSpace(req.QuestionJSON.QuestionCore)
 	current.StandardSolution = strings.TrimSpace(req.QuestionJSON.StandardSolution)
@@ -265,6 +286,11 @@ func (s *QuestionService) Update(ctx context.Context, id int64, req dto.UpdateWr
 	current.MasteryStatus = defaultMasteryStatus(req.MasteryStatus)
 	current.SourceImageID = req.SourceImageID
 	current.SourceImageURL = strings.TrimSpace(req.SourceImageURL)
+	tags, err := s.tagService.Replace(userID, current.Tags, req.Tags)
+	if err != nil {
+		return dto.UpdateWrongQuestionResponse{}, err
+	}
+
 	current.Tags = tags
 	current.UpdatedAt = time.Now()
 
@@ -316,6 +342,7 @@ func (s *QuestionService) Similar(ctx context.Context, id int64, req dto.Similar
 		return dto.SimilarQuestionResponse{}, err
 	}
 
+	question.RecallScope = req.RecallScope
 	return s.similarByBase(ctx, question, req.VectorType, req.Limit, req.UseTagFilter)
 }
 
@@ -337,6 +364,14 @@ func (s *QuestionService) SimilarByJSON(ctx context.Context, req dto.SimilarByJS
 		Tags:            normalizeTagGroups(req.Tags),
 	}
 
+	if req.ClassificationStatus != "" && req.ClassificationStatus != "confirmed" {
+		return dto.SimilarQuestionResponse{}, apperrors.New(409, 40902, "请先确认题目学科，再查找相似题")
+	}
+	if err := s.Subjects.Apply(ctx, &base, req.SubjectID, req.CourseID, req.Chapter); err != nil {
+		return dto.SimilarQuestionResponse{}, err
+	}
+	base.AnalysisStale = req.AnalysisStale
+	base.RecallScope = req.RecallScope
 	return s.similarByBase(ctx, base, req.VectorType, req.Limit, req.UseTagFilter)
 }
 
@@ -363,16 +398,20 @@ func (s *QuestionService) similarByBase(ctx context.Context, base model.WrongQue
 	results := make([]dto.SimilarQuestionItem, 0, len(searchResults))
 	for _, item := range searchResults {
 		candidate, ok := s.repo.GetByID(item.QuestionID)
-		if !ok || candidate.IsDeleted || candidate.UserID != userID {
+		if !ok || candidate.IsDeleted || candidate.UserID != userID || candidate.SubjectID != base.SubjectID || candidate.ClassificationStatus != "confirmed" || (base.SubjectID == "cs408" && base.RecallScope != "subject" && candidate.CourseID != base.CourseID) {
 			continue
 		}
 
 		matchedTags := overlapTags(base.Tags, candidate.Tags)
+		if base.AnalysisStale || candidate.AnalysisStale {
+			matchedTags = []string{}
+		}
 		if useTagFilter && len(matchedTags) == 0 {
 			continue
 		}
 
 		results = append(results, dto.SimilarQuestionItem{
+			SubjectID: candidate.SubjectID, Subject: candidate.Subject, CourseID: candidate.CourseID, Chapter: candidate.Chapter, ClassificationStatus: candidate.ClassificationStatus,
 			QuestionID:     candidate.ID,
 			Score:          item.Score,
 			SimilarityType: similarityType(useTagFilter, vectorType, matchedTags),
@@ -385,7 +424,14 @@ func (s *QuestionService) similarByBase(ctx context.Context, base model.WrongQue
 		})
 	}
 
-	return dto.SimilarQuestionResponse{List: results}, nil
+	status := "ready"
+	if len(results) == 0 {
+		status = "no_matches"
+		if s.vectorService.Local.IndexPending(base) {
+			status = "indexing"
+		}
+	}
+	return dto.SimilarQuestionResponse{List: results, Status: status}, nil
 }
 
 func (s *QuestionService) getActiveQuestion(ctx context.Context, id int64) (model.WrongQuestion, error) {
@@ -406,9 +452,7 @@ func validateCreateQuestion(req dto.CreateWrongQuestionRequest) error {
 	if err := validator.AllowEnum(req.SourceType, "source_type", enum.IsValidSourceType); err != nil {
 		return err
 	}
-	if err := validator.RequireString(req.Subject, "subject"); err != nil {
-		return err
-	}
+
 	if err := validator.RequireString(req.QuestionJSON.QuestionCore, "question_json.question_core"); err != nil {
 		return err
 	}
@@ -429,9 +473,7 @@ func validateCreateQuestion(req dto.CreateWrongQuestionRequest) error {
 }
 
 func validateUpdateQuestion(req dto.UpdateWrongQuestionRequest) error {
-	if err := validator.RequireString(req.Subject, "subject"); err != nil {
-		return err
-	}
+
 	if err := validator.RequireString(req.QuestionJSON.QuestionCore, "question_json.question_core"); err != nil {
 		return err
 	}

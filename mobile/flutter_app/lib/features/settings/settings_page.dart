@@ -1,4 +1,5 @@
 import '../../shared/widgets/lan_computer_picker.dart';
+import '../profile/profile_card.dart';
 import '../../core/update/update_preferences.dart';
 import '../update/update_check.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         padding: const EdgeInsets.all(20),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         children: [
+          const ProfileCard(),
+          const SizedBox(height: 16),
           const AppearanceCard(),
           const SizedBox(height: 16),
           Card(

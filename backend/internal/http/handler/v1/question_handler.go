@@ -42,6 +42,7 @@ func (h *QuestionHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	difficulty, _ := strconv.Atoi(r.URL.Query().Get("difficulty_level"))
 	filter := dto.ListQuestionFilter{
+		SubjectID: r.URL.Query().Get("subject_id"), CourseID: r.URL.Query().Get("course_id"), ClassificationStatus: r.URL.Query().Get("classification_status"),
 		Page:            page,
 		PageSize:        pageSize,
 		Subject:         strings.TrimSpace(r.URL.Query().Get("subject")),

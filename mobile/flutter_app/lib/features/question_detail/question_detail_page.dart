@@ -8,10 +8,7 @@ import '../../shared/widgets/remote_image_card.dart';
 import '../question_list/question_repository.dart';
 
 class QuestionDetailPage extends ConsumerWidget {
-  const QuestionDetailPage({
-    super.key,
-    required this.questionId,
-  });
+  const QuestionDetailPage({super.key, required this.questionId});
 
   final int questionId;
 
@@ -57,7 +54,9 @@ class QuestionDetailPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${data.subject} · ${data.chapter}'),
+                    Text(
+                      '${data.classification.label(data.subject, data.chapter)} ${data.classification.statusLabel}',
+                    ),
                     const SizedBox(height: 8),
                     Text('掌握状态：${data.masteryStatus.label}'),
                     const SizedBox(height: 8),
@@ -104,10 +103,7 @@ class QuestionDetailPage extends ConsumerWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.child,
-  });
+  const _SectionCard({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -122,9 +118,9 @@ class _SectionCard extends StatelessWidget {
           children: [
             Text(
               title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             child,

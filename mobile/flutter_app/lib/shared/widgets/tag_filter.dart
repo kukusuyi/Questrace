@@ -3,12 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/tag_manage/tag_repository.dart';
 import '../models/tag_models.dart';
 
-final filterTagsProvider = FutureProvider.autoDispose(
-  (ref) => ref.watch(tagRepositoryProvider).listTags(),
-);
+final filterTagsProvider = FutureProvider.autoDispose
+    .family<TagListResponse, ({String subject, String course})>(
+      (ref, scope) => ref
+          .watch(tagRepositoryProvider)
+          .listTags(subjectId: scope.subject, courseId: scope.course),
+    );
 
 class TagFilter extends ConsumerStatefulWidget {
-  const TagFilter({super.key, required this.selected, required this.onChanged});
+  const TagFilter({
+    super.key,
+    this.subjectId = '',
+    this.courseId = '',
+    required this.selected,
+    required this.onChanged,
+  });
+  final String subjectId, courseId;
   final List<int> selected;
   final ValueChanged<List<int>> onChanged;
   @override
@@ -19,7 +29,9 @@ class _TagFilterState extends ConsumerState<TagFilter> {
   String keyword = '';
   @override
   Widget build(BuildContext context) {
-    final tags = ref.watch(filterTagsProvider);
+    final tags = ref.watch(
+      filterTagsProvider((subject: widget.subjectId, course: widget.courseId)),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -66,7 +66,7 @@
           <div class="meta-text">题目元信息</div>
           <el-descriptions :column="1" border>
             <el-descriptions-item label="ID">{{ detail.question_id }}</el-descriptions-item>
-            <el-descriptions-item label="学科">{{ detail.subject }}</el-descriptions-item>
+            <el-descriptions-item label="学科"><ClassificationBadge :item="detail"/></el-descriptions-item>
             <el-descriptions-item label="章节">{{ detail.chapter || '--' }}</el-descriptions-item>
             <el-descriptions-item label="来源">{{ detail.source_type }}</el-descriptions-item>
             <el-descriptions-item label="掌握状态">{{ formatMasteryStatus(detail.mastery_status) }}</el-descriptions-item>
@@ -100,6 +100,7 @@
 </template>
 
 <script setup lang="ts">
+import ClassificationBadge from "@/components/ClassificationBadge/index.vue";
 const props=defineProps<{questionId?:number}>();
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, watch } from 'vue'
@@ -130,6 +131,7 @@ function handleTagClick(payload: { type: string; name: string }) {
   router.push({
     path: '/questions',
     query: {
+      subject_id:detail.value?.subject_id||undefined,course_id:detail.value?.course_id||undefined,
       tagName: payload.name,
       tagType: payload.type,
     },
@@ -142,17 +144,19 @@ async function loadDetail() {
   loading.value = true
   try {
     detail.value = await getQuestionDetail(getQuestionID())
+    if(detail.value.classification_status!=='confirmed'){similarMessage.value='请先编辑并确认题目学科，再查找相似题';return}
     const status=await httpGet<{embedding_enabled:boolean}>('/api/v1/system/status')
     if(!status.embedding_enabled){similarMessage.value='相似题功能尚未配置，请管理员在设置中添加 Embedding 模型';return}
-    similarMessage.value='暂未找到相似题；新题目的索引可能仍在后台生成'
+    similarMessage.value='暂未找到同学科相似题'
     const similarResponse = await findSimilarQuestions(getQuestionID(), {
       vector_type: 'semantic',
       limit: 3,
       use_tag_filter: false,
     })
     similarList.value = similarResponse.list
+    if(similarResponse.status==='indexing')similarMessage.value='同学科题目的索引正在生成或等待重试，请稍后查看'
   } catch (error) {
-    ElMessage.error(getErrorMessage(error, '错题详情加载失败'))
+    if(detail.value)similarMessage.value=getErrorMessage(error,'相似题加载失败');else ElMessage.error(getErrorMessage(error, '错题详情加载失败'))
   } finally {
     loading.value = false
   }

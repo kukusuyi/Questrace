@@ -28,6 +28,15 @@ export interface OCRContext {
 }
 
 export interface QuestionDraft {
+ warnings?:string[]
+ suggested_subject?:string
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   provider_name: string
   model_name: string
   source_type: SourceType
@@ -48,6 +57,13 @@ export interface QuestionDraft {
 }
 
 export interface CreateWrongQuestionPayload {
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   source_type: SourceType
   source_image_id?: number
   source_image_url: string
@@ -62,6 +78,13 @@ export interface CreateWrongQuestionPayload {
 }
 
 export interface UpdateWrongQuestionPayload {
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   question_json: QuestionJSON
   subject: string
   chapter: string
@@ -89,6 +112,13 @@ export interface DeleteWrongQuestionResponse {
 }
 
 export interface QuestionListItem {
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   question_id: number
   question_core: string
   source_image_id?: number
@@ -111,12 +141,22 @@ export interface QuestionDetail extends QuestionListItem {
 }
 
 export interface SimilarQuestionRequest {
+ recall_scope?: "course" | "subject"
   vector_type: VectorType
   limit: number
   use_tag_filter: boolean
 }
 
 export interface SimilarQuestionItem {
+ subject?:string
+ chapter?:string
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   question_id: number
   score: number
   similarity_type: SimilarityType
@@ -129,15 +169,31 @@ export interface SimilarQuestionItem {
 }
 
 export interface SimilarQuestionResponse {
+ status?:string
   list: SimilarQuestionItem[]
 }
 
 export interface SimilarByJSONPayload extends SimilarQuestionRequest {
+  chapter?: string
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   question_json: QuestionJSON
   tags: TagGroups
 }
 
 export interface ListQuestionFilter {
+  subject_id?: string
+  course_id?: string
+  classification_status?: string
+  analysis_stale?: boolean
+  analysis_confirmed?: boolean
+  revision?: number
+
   page?: number
   page_size?: number
   subject?: string

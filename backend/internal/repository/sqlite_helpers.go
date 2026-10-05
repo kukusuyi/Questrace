@@ -150,6 +150,7 @@ func scanQuestion(scanner rowScanner) (model.WrongQuestion, error) {
 	err := scanner.Scan(
 		&item.ID,
 		&item.UserID,
+		&item.SubjectID, &item.CourseID, &item.ClassificationStatus, &item.AnalysisStale, &item.Revision,
 		&item.Subject,
 		&chapter,
 		&item.QuestionCore,

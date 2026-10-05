@@ -1,3 +1,4 @@
+import '../shared/models/classification.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -139,6 +140,11 @@ ListQuestionFilter _questionFilterFromState(GoRouterState state) {
 
   return ListQuestionFilter(
     keyword: query['keyword'],
+    classification: Classification(
+      subjectId: query['subject_id'] ?? '',
+      courseId: query['course_id'] ?? '',
+      status: query['classification_status'] ?? '',
+    ),
     subject: query['subject'],
     chapter: query['chapter'],
     page: int.tryParse(query['page'] ?? '1') ?? 1,

@@ -1,6 +1,12 @@
 package dto
 
 type AnalyzeWrongQuestionRequest struct {
+	SubjectID        string   `json:"subject_id"`
+	Subject          string   `json:"subject"`
+	CourseID         string   `json:"course_id"`
+	SuggestedSubject string   `json:"suggested_subject"`
+	Warnings         []string `json:"warnings"`
+
 	ProviderName string       `json:"provider_name"`
 	ModelName    string       `json:"model_name"`
 	Chapter      string       `json:"chapter"`
@@ -9,6 +15,13 @@ type AnalyzeWrongQuestionRequest struct {
 }
 
 type AnalyzeWrongQuestionResponse struct {
+	SubjectID            string   `json:"subject_id"`
+	Subject              string   `json:"subject"`
+	CourseID             string   `json:"course_id"`
+	SuggestedSubject     string   `json:"suggested_subject"`
+	Warnings             []string `json:"warnings"`
+	ClassificationStatus string   `json:"classification_status"`
+
 	Chapter         string    `json:"chapter"`
 	Tags            TagGroups `json:"tags"`
 	SemanticSummary string    `json:"semantic_summary"`

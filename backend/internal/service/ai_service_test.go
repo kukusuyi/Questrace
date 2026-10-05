@@ -91,6 +91,7 @@ func TestAIServiceAnalyzeWithProviderUsesDynamicallyDiscoveredChapterPrompt(t *t
 	}
 
 	result, err := service.analyzeWithProvider(context.Background(), provider, dto.AnalyzeWrongQuestionRequest{
+		SubjectID:    "math_grad",
 		ProviderName: "stub",
 		ModelName:    "stub-model",
 		QuestionJSON: dto.QuestionJSON{
@@ -173,6 +174,7 @@ func TestAIServiceAnalyzeWithProviderRejectsUnknownChapterRoute(t *testing.T) {
 	}
 
 	_, err = service.analyzeWithProvider(context.Background(), provider, dto.AnalyzeWrongQuestionRequest{
+		SubjectID:    "math_grad",
 		ProviderName: "stub",
 		ModelName:    "stub-model",
 		QuestionJSON: dto.QuestionJSON{
@@ -238,6 +240,7 @@ func TestAIServiceAnalyzeWithProviderSkipsRouteWhenChapterSpecified(t *testing.T
 	}
 
 	result, err := service.analyzeWithProvider(context.Background(), provider, dto.AnalyzeWrongQuestionRequest{
+		SubjectID:    "math_grad",
 		ProviderName: "stub",
 		ModelName:    "stub-model",
 		Chapter:      "定积分",

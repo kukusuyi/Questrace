@@ -23,6 +23,9 @@ func (s ReviewService) now() int64 {
 }
 
 type ReviewCreate struct {
+	SubjectID     string  `json:"subject_id"`
+	CourseID      string  `json:"course_id"`
+	Chapter       string  `json:"chapter"`
 	Subject       string  `json:"subject"`
 	TagIDs        []int64 `json:"tag_ids"`
 	MasteryStatus string  `json:"mastery_status"`
@@ -35,12 +38,18 @@ type ReviewSession struct {
 	Items          []ReviewItem `json:"items"`
 }
 type ReviewItem struct {
-	QuestionID       int64  `json:"question_id"`
-	QuestionCore     string `json:"question_core"`
-	StandardSolution string `json:"standard_solution"`
-	SourceImageURL   string `json:"source_image_url"`
-	Result           string `json:"result"`
-	Deleted          bool   `json:"deleted"`
+	SubjectID            string `json:"subject_id"`
+	Subject              string `json:"subject"`
+	CourseID             string `json:"course_id"`
+	Chapter              string `json:"chapter"`
+	ClassificationStatus string `json:"classification_status"`
+	AnalysisStale        bool   `json:"analysis_stale"`
+	QuestionID           int64  `json:"question_id"`
+	QuestionCore         string `json:"question_core"`
+	StandardSolution     string `json:"standard_solution"`
+	SourceImageURL       string `json:"source_image_url"`
+	Result               string `json:"result"`
+	Deleted              bool   `json:"deleted"`
 }
 type ReviewSummary struct {
 	Due      int                    `json:"due"`
@@ -95,6 +104,12 @@ func (s ReviewService) Create(uid int64, in ReviewCreate) (ReviewSession, error)
 	}
 	where := `q.user_id=? AND q.is_deleted=0`
 	args := []any{uid}
+	for _, f := range []struct{ column, value string }{{"subject_id", in.SubjectID}, {"course_id", in.CourseID}, {"chapter", in.Chapter}} {
+		if f.value != "" {
+			where += " AND q." + f.column + "=?"
+			args = append(args, f.value)
+		}
+	}
 	if in.Subject != "" {
 		where += ` AND q.subject=?`
 		args = append(args, in.Subject)
@@ -107,6 +122,7 @@ func (s ReviewService) Create(uid int64, in ReviewCreate) (ReviewSession, error)
 		args = append(args, s.now())
 	}
 	if len(in.TagIDs) > 0 {
+		where += " AND q.analysis_stale=0"
 		where += ` AND EXISTS(SELECT 1 FROM wrong_question_tag w JOIN tag t ON t.id=w.tag_id WHERE w.question_id=q.id AND t.is_active=1 AND t.id IN (` + strings.TrimRight(strings.Repeat("?,", len(in.TagIDs)), ",") + `))`
 		for _, id := range in.TagIDs {
 			args = append(args, id)
@@ -166,14 +182,14 @@ func (s ReviewService) Get(uid, id int64) (ReviewSession, error) {
 	if err != nil {
 		return out, err
 	}
-	rows, err := s.DB.Query(`SELECT q.id,q.question_core,coalesce(q.standard_solution,''),coalesce(q.source_image_url,''),i.result,q.is_deleted FROM review_session_item i JOIN wrong_question q ON q.id=i.question_id WHERE i.session_id=? AND q.user_id=? ORDER BY i.position`, id, uid)
+	rows, err := s.DB.Query(`SELECT q.id,q.question_core,coalesce(q.standard_solution,''),coalesce(q.source_image_url,''),i.result,q.is_deleted,q.subject_id,q.subject,q.course_id,coalesce(q.chapter,''),q.classification_status,q.analysis_stale FROM review_session_item i JOIN wrong_question q ON q.id=i.question_id WHERE i.session_id=? AND q.user_id=? ORDER BY i.position`, id, uid)
 	if err != nil {
 		return out, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var item ReviewItem
-		if err = rows.Scan(&item.QuestionID, &item.QuestionCore, &item.StandardSolution, &item.SourceImageURL, &item.Result, &item.Deleted); err != nil {
+		if err = rows.Scan(&item.QuestionID, &item.QuestionCore, &item.StandardSolution, &item.SourceImageURL, &item.Result, &item.Deleted, &item.SubjectID, &item.Subject, &item.CourseID, &item.Chapter, &item.ClassificationStatus, &item.AnalysisStale); err != nil {
 			return out, err
 		}
 		out.Items = append(out.Items, item)

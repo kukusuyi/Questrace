@@ -38,6 +38,7 @@ func NewRouter(appLogger *slog.Logger, authService *service.AuthService, handler
 	mux.HandleFunc("POST /api/v1/auth/login", handlers.Auth.Login)
 
 	mux.HandleFunc("GET /api/v1/users/me", handlers.User.GetMe)
+	mux.HandleFunc("PUT /api/v1/users/me", handlers.User.UpdateMe)
 	mux.HandleFunc("GET /api/v1/dashboard/summary", handlers.Dashboard.Summary)
 	mux.HandleFunc("GET /api/v1/dashboard/recent", handlers.Dashboard.Recent)
 	mux.HandleFunc("GET /api/v1/dashboard/tags", handlers.Dashboard.Tags)
@@ -48,6 +49,9 @@ func NewRouter(appLogger *slog.Logger, authService *service.AuthService, handler
 	mux.HandleFunc("POST /api/v1/ocr/wrong-question-json", handlers.OCR.RecognizeWrongQuestion)
 	mux.HandleFunc("GET /api/v1/ai/model-providers", handlers.AI.ListProviders)
 	mux.HandleFunc("GET /api/v1/ai/model-providers/{providerName}/models", handlers.AI.ListProviderModels)
+	mux.HandleFunc("GET /api/v1/subjects", handlers.AI.ListSubjects)
+	mux.HandleFunc("POST /api/v1/subjects", handlers.AI.CreateSubject)
+	mux.HandleFunc("POST /api/v1/wrong-questions/classification", handlers.Question.Reclassify)
 	mux.HandleFunc("GET /api/v1/ai/chapters", handlers.AI.ListChapters)
 	mux.HandleFunc("POST /api/v1/ai/analyze-wrong-question", handlers.AI.AnalyzeWrongQuestion)
 	mux.HandleFunc("POST /api/v1/wrong-questions", handlers.Question.Create)

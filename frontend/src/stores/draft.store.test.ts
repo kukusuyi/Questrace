@@ -11,3 +11,11 @@ it('deleting a resumed draft remains deleted after reload', async()=>{
  setActivePinia(createPinia());store=useDraftStore();expect(store.currentDraft).not.toBeNull();
  store.resetDraft();await nextTick();setActivePinia(createPinia());expect(useDraftStore().currentDraft).toBeNull();
 })
+it('does not default to math and restores classification when analysis is rejected',async()=>{
+ const store=useDraftStore();const draft=store.ensureDraft();expect(draft.subject_id).toBe('');expect(draft.subject).toBe('待分类');
+ draft.subject_id='highschool_physics';draft.subject='高中物理';draft.course_id='';draft.classification_status='confirmed';
+ store.applyAnalysis({subject_id:'cs408',subject:'408',course_id:'operating_systems',chapter:'内存管理',classification_status:'confirmed',tags:draft.tags,semantic_summary:'分页',mistake_summary:''});
+ await nextTick();expect(store.currentDraft?.course_id).toBe('operating_systems');
+ setActivePinia(createPinia());const recovered=useDraftStore();expect(recovered.currentDraft?.subject_id).toBe('cs408');recovered.discardAnalysis();expect(recovered.currentDraft?.subject_id).toBe('highschool_physics');expect(recovered.currentDraft?.course_id).toBe('');
+})
+it('new upload discards previous classification and AI confirmation',()=>{const store=useDraftStore();const draft=store.ensureDraft();draft.subject_id='math_grad';draft.analysis_confirmed=true;store.setUploadedImage(1,'/image');expect(store.currentDraft?.subject_id).toBe('');expect(store.currentDraft?.analysis_confirmed).toBe(false)})

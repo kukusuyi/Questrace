@@ -240,10 +240,11 @@ func (s *LocalRuntime) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Token    string `json:"token"`
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Token          string `json:"token"`
+		EducationStage string `json:"education_stage"`
+		Username       string `json:"username"`
+		Password       string `json:"password"`
+		Email          string `json:"email"`
 	}
 	if dto.DecodeJSON(r, &req) != nil {
 		fail(w, 400, "请求格式错误")
@@ -257,12 +258,16 @@ func (s *LocalRuntime) setup(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "请填写用户名、邮箱及 8–72 字节密码")
 		return
 	}
+	if err := service.ValidateEducationStage(req.EducationStage); err != nil {
+		dto.HandleError(w, err)
+		return
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		dto.HandleError(w, err)
 		return
 	}
-	_, err = repository.NewSQLiteUserRepository(s.DB).Create(model.User{Username: strings.TrimSpace(req.Username), Email: req.Email, PasswordHash: string(hash), Role: "admin"})
+	_, err = repository.NewSQLiteUserRepository(s.DB).Create(model.User{Username: strings.TrimSpace(req.Username), Email: req.Email, PasswordHash: string(hash), Role: "admin", EducationStage: req.EducationStage})
 	if err != nil {
 		dto.HandleError(w, err)
 		return

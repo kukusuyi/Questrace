@@ -1,3 +1,5 @@
+import '../../shared/models/classification.dart';
+import '../../shared/widgets/subject_picker.dart';
 import '../../shared/widgets/solution_ocr_button.dart';
 import 'package:questrace_flutter/core/network/api_exception.dart';
 import 'package:flutter/material.dart';
@@ -12,10 +14,7 @@ import '../../shared/widgets/tag_groups_editor.dart';
 import '../question_list/question_repository.dart';
 
 class QuestionEditPage extends ConsumerStatefulWidget {
-  const QuestionEditPage({
-    super.key,
-    required this.questionId,
-  });
+  const QuestionEditPage({super.key, required this.questionId});
 
   final int questionId;
 
@@ -24,6 +23,7 @@ class QuestionEditPage extends ConsumerStatefulWidget {
 }
 
 class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
+  Classification _classification = const Classification();
   final _subjectController = TextEditingController();
   final _chapterController = TextEditingController();
   final _questionCoreController = TextEditingController();
@@ -62,9 +62,7 @@ class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
     final detail = ref.watch(questionDetailProvider(widget.questionId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('编辑错题'),
-      ),
+      appBar: AppBar(title: const Text('编辑错题')),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
@@ -92,14 +90,16 @@ class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      TextFormField(
-                        controller: _subjectController,
-                        decoration: const InputDecoration(labelText: '学科'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _chapterController,
-                        decoration: const InputDecoration(labelText: '章节'),
+                      SubjectPicker(
+                        value: _classification,
+                        chapter: _chapterController.text,
+                        onChanged: (v, c) {
+                          setState(() {
+                            _classification = v;
+                            _subjectController.text = v.subjectName;
+                            _chapterController.text = c;
+                          });
+                        },
                       ),
                       const SizedBox(height: 12),
                       LatexReviewField(
@@ -118,7 +118,8 @@ class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
                         onChanged: (_) {},
                       ),
                       SolutionOcrButton(
-                          controller: _standardSolutionController),
+                        controller: _standardSolutionController,
+                      ),
                       const SizedBox(height: 12),
                       LatexReviewField(
                         title: '错误解',
@@ -222,6 +223,7 @@ class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
       return;
     }
 
+    _classification = detail.classification;
     _subjectController.text = detail.subject;
     _chapterController.text = detail.chapter;
     _questionCoreController.text = detail.questionCore;
@@ -257,9 +259,12 @@ class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
     });
 
     try {
-      await ref.read(questionRepositoryProvider).updateQuestion(
+      await ref
+          .read(questionRepositoryProvider)
+          .updateQuestion(
             widget.questionId,
             UpdateWrongQuestionPayload(
+              classification: _classification,
               questionJson: QuestionJson(
                 questionCore: _questionCoreController.text.trim(),
                 standardSolution: _standardSolutionController.text.trim(),
@@ -311,8 +316,8 @@ class _QuestionEditPageState extends ConsumerState<QuestionEditPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

@@ -134,6 +134,7 @@ async function runAnalysis() {
 
     try {
         const analysis = await analyzeWrongQuestion({
+            subject_id:current.subject_id,course_id:current.course_id,
             provider_name: current.provider_name,
             model_name: current.model_name,
             chapter: current.chapter_locked

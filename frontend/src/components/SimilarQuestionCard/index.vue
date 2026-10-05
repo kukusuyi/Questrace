@@ -1,5 +1,6 @@
 <template>
   <article class="similar-card paper-panel">
+    <ClassificationBadge :item="item"/>
     <div class="similar-head">
       <div>
         <div class="meta-text">相似类型 · {{ item.similarity_type }}</div>
@@ -28,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import ClassificationBadge from "@/components/ClassificationBadge/index.vue";
 import { useRouter } from 'vue-router'
 
 import TagGroup from '@/components/TagGroup/index.vue'
@@ -44,6 +46,8 @@ function handleTagClick(payload: { type: string; name: string }) {
   router.push({
     path: '/questions',
     query: {
+      subject_id: props.item.subject_id || undefined,
+      course_id: props.item.course_id || undefined,
       tagType: payload.type,
       tagName: payload.name,
     },

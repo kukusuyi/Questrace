@@ -48,10 +48,20 @@ func (h *AIHandler) ListProviderModels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AIHandler) ListChapters(w http.ResponseWriter, r *http.Request) {
-	response, err := h.service.ListChapters()
-	if err != nil {
-		dto.HandleError(w, err)
-		return
+	id, course := r.URL.Query().Get("subject_id"), r.URL.Query().Get("course_id")
+	response := dto.AIChapterListResponse{List: []string{}}
+	if id != "" {
+		x, err := h.service.Subjects.Resolve(r.Context(), id, course, "")
+		if err != nil {
+			dto.HandleError(w, err)
+			return
+		}
+		response.List = x.Chapters
+		for _, c := range x.Courses {
+			if c.ID == course {
+				response.List = c.Chapters
+			}
+		}
 	}
 
 	dto.WriteSuccess(w, response)

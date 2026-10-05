@@ -3,6 +3,13 @@ package model
 import "time"
 
 type WrongQuestion struct {
+	SubjectID            string
+	CourseID             string
+	ClassificationStatus string
+	AnalysisStale        bool
+	Revision             int64
+	RecallScope          string // query-only: course (default) or subject
+
 	ID               int64
 	UserID           int64
 	Subject          string

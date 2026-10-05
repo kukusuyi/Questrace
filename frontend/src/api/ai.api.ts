@@ -13,8 +13,8 @@ export function listAIModelProviders() {
   return httpGet<AIProviderListResponse>('/api/v1/ai/model-providers')
 }
 
-export function listAIChapters() {
-  return httpGet<AIChapterListResponse>('/api/v1/ai/chapters')
+export function listAIChapters(subject_id = '', course_id = '') {
+  return httpGet<AIChapterListResponse>('/api/v1/ai/chapters',{subject_id,course_id})
 }
 
 export function listAIProviderModels(providerName: string) {

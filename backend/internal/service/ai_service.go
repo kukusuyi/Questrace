@@ -31,6 +31,7 @@ var errInvalidAnalyzeChapterRoute = errors.New("invalid analyze chapter route")
 var errUnknownAnalyzeChapter = errors.New("unknown analyze chapter")
 
 type AIService struct {
+	Subjects                *SubjectService
 	registry                *aiclient.Registry
 	recordRepo              repository.AIAnalysisRecordRepository
 	chapterRouterPromptText string
@@ -155,6 +156,10 @@ func (s *AIService) Analyze(ctx context.Context, req dto.AnalyzeWrongQuestionReq
 		return dto.AnalyzeWrongQuestionResponse{}, apperrors.New(http.StatusNotFound, 40405, "模型厂商不存在")
 	}
 
+	resolvedReq, err = s.classify(ctx, provider, resolvedReq)
+	if err != nil {
+		return dto.AnalyzeWrongQuestionResponse{}, apperrors.New(502, 50006, "学科识别失败，请重试或手动整理："+err.Error())
+	}
 	result, err := s.analyzeWithProvider(ctx, provider, resolvedReq)
 	if err != nil {
 		s.recordFailure(userID, resolvedReq, inputQuestionJSONBytes, apperrors.ProviderMessage(0, err.Error()))
@@ -179,7 +184,12 @@ func (s *AIService) Analyze(ctx context.Context, req dto.AnalyzeWrongQuestionReq
 		return dto.AnalyzeWrongQuestionResponse{}, err
 	}
 
+	status := "pending"
+	if resolvedReq.SubjectID != "" {
+		status = "confirmed"
+	}
 	return dto.AnalyzeWrongQuestionResponse{
+		SubjectID: resolvedReq.SubjectID, Subject: resolvedReq.Subject, CourseID: resolvedReq.CourseID, ClassificationStatus: status, SuggestedSubject: resolvedReq.SuggestedSubject, Warnings: resolvedReq.Warnings,
 		Chapter:         result.Chapter,
 		Tags:            result.Tags,
 		SemanticSummary: result.SemanticSummary,
@@ -188,14 +198,24 @@ func (s *AIService) Analyze(ctx context.Context, req dto.AnalyzeWrongQuestionReq
 }
 
 func (s *AIService) analyzeWithProvider(ctx context.Context, provider aiclient.ProviderClient, req dto.AnalyzeWrongQuestionRequest) (llmAnalyzeResult, error) {
-	chapterRouterPrompt, chapterPrompts, err := s.loadCurrentAnalyzePrompts()
+	chapterPrompts, err := scopedPrompts(req.SubjectID, req.CourseID)
 	if err != nil {
 		return llmAnalyzeResult{}, &analyzePromptLoadError{Err: err}
 	}
-
-	selectedPrompt, err := s.selectAnalyzeChapter(ctx, provider, req, chapterRouterPrompt, chapterPrompts)
+	var selectedPrompt analyzeChapterPrompt
+	if len(chapterPrompts) > 0 {
+		selectedPrompt, err = s.selectAnalyzeChapter(ctx, provider, req, s.currentChapterRouterPrompt(), chapterPrompts)
+	} else {
+		selectedPrompt, err = generalPrompt()
+	}
 	if err != nil {
 		return llmAnalyzeResult{}, err
+	}
+	if selectedPrompt.Content == "" {
+		selectedPrompt, err = generalPrompt()
+		if err != nil {
+			return llmAnalyzeResult{}, err
+		}
 	}
 
 	payloadBytes, err := json.Marshal(buildAnalyzePayload(req))
@@ -224,7 +244,18 @@ func (s *AIService) analyzeWithProvider(ctx context.Context, provider aiclient.P
 	if err != nil {
 		return llmAnalyzeResult{}, &analyzeResultParseError{Err: err}
 	}
-	result.Chapter = selectedPrompt.Name
+	if selectedPrompt.Name == "" && len(chapterPrompts) == 0 && req.Chapter != "" {
+		result.Chapter = req.Chapter
+	}
+	if selectedPrompt.Name != "" {
+		result.Chapter = selectedPrompt.Name
+		constrainTags(&result, selectedPrompt.Content)
+	} else if len(chapterPrompts) > 0 {
+		result.Chapter = ""
+	}
+	if len(result.Tags.Method) > 3 {
+		result.Tags.Method = result.Tags.Method[:3]
+	}
 
 	return result, nil
 }
@@ -283,6 +314,9 @@ func (s *AIService) routeAnalyzeChapter(
 		return analyzeChapterPrompt{}, fmt.Errorf("%w: %v", errInvalidAnalyzeChapterRoute, err)
 	}
 
+	if chapterName == "" {
+		return analyzeChapterPrompt{}, nil
+	}
 	for _, chapterPrompt := range chapterPrompts {
 		if chapterPrompt.Name == chapterName {
 			return chapterPrompt, nil
@@ -383,6 +417,7 @@ func (s *AIService) recordFailure(userID int64, req dto.AnalyzeWrongQuestionRequ
 func buildAnalyzePayload(req dto.AnalyzeWrongQuestionRequest) map[string]any {
 	payload := map[string]any{
 		"question_json": req.QuestionJSON,
+		"subject_id":    req.SubjectID, "subject": req.Subject, "course_id": req.CourseID,
 	}
 	if strings.TrimSpace(req.Chapter) != "" {
 		payload["chapter"] = strings.TrimSpace(req.Chapter)
@@ -402,7 +437,7 @@ func buildAnalyzeChapterRoutePayload(req dto.AnalyzeWrongQuestionRequest, chapte
 func buildAnalyzeChapterRouteSystemPrompt(basePrompt string, chapterPrompts []analyzeChapterPrompt) string {
 	return strings.TrimSpace(basePrompt) + `
 
-当前可选章节列表（必须且只能从中选择一个）：
+当前学科可选章节列表（信息不足可返回空）：
 ` + formatChapterPromptNames(chapterPrompts) + `
 
 你现在执行的是“错题章节识别接口”，输入一定是 JSON。
@@ -415,7 +450,7 @@ func buildAnalyzeChapterRouteSystemPrompt(basePrompt string, chapterPrompts []an
 附加规则：
 1. chapter 必须与可选章节列表中的某一项完全一致，不允许改写，不允许输出列表外的章节名。
 2. 如果题目跨多个章节，选择最核心、最直接对应的主章节。
-3. 如果信息不足，也必须从可选章节列表中选出最可能的一项，不能返回空字符串。
+3. 如果信息不足，chapter 返回空字符串，不要猜测。
 4. 只输出 JSON，不要输出 Markdown，不要输出解释。`
 }
 
@@ -426,6 +461,7 @@ func buildAnalyzeSystemPrompt(basePrompt string) string {
 
 你必须在遵守上述标签规则的前提下，输出以下严格合法 JSON：
 {
+  "chapter": "",
   "tags": {
     "knowledge_points": [],
     "problem_type": [],
@@ -453,9 +489,6 @@ func parseAnalyzeChapterRouteResult(raw string) (string, error) {
 	}
 
 	chapter := strings.TrimSpace(result.Chapter)
-	if chapter == "" {
-		return "", fmt.Errorf("chapter 不能为空")
-	}
 
 	return chapter, nil
 }
@@ -477,6 +510,7 @@ func parseAnalyzeResult(raw string, wrongSolution string) (llmAnalyzeResult, err
 	}
 	if strings.TrimSpace(wrongSolution) == "" {
 		result.MistakeSummary = ""
+		result.Tags.MistakeReason = []string{}
 	}
 
 	return result, nil

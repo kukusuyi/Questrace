@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { getCurrentUser } from '@/api/user.api'
+import { getCurrentUser, updateEducationStage } from '@/api/user.api'
 import type { UserMeResponse } from '@/types/user'
 import { clearStoredAuthUser, setStoredAuthUser } from '@/utils/auth'
 
@@ -22,6 +22,8 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  async function saveEducationStage(stage:string) { profile.value = await updateEducationStage(stage) }
+
   function clearProfile() {
     profile.value = null
     clearStoredAuthUser()
@@ -31,6 +33,7 @@ export const useUserStore = defineStore('user', () => {
     profile,
     loading,
     fetchProfile,
+    saveEducationStage,
     clearProfile,
   }
 })

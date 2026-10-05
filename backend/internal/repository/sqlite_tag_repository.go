@@ -34,6 +34,18 @@ WHERE is_active = 1`
 		query += " AND tag_name LIKE ?"
 		args = append(args, "%"+strings.TrimSpace(filter.Keyword)+"%")
 	}
+	if filter.SubjectID != "" || filter.CourseID != "" {
+		query += ` AND EXISTS(SELECT 1 FROM wrong_question_tag qt JOIN wrong_question q ON q.id=qt.question_id WHERE qt.tag_id=tag.id AND q.user_id=tag.user_id AND q.is_deleted=0 AND q.classification_status='confirmed' AND q.analysis_stale=0`
+		if filter.SubjectID != "" {
+			query += " AND q.subject_id=?"
+			args = append(args, filter.SubjectID)
+		}
+		if filter.CourseID != "" {
+			query += " AND q.course_id=?"
+			args = append(args, filter.CourseID)
+		}
+		query += ")"
+	}
 	query += " ORDER BY usage_count DESC, id DESC"
 
 	rows, err := r.db.Query(query, args...)

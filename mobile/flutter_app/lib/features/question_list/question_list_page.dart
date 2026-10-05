@@ -1,3 +1,6 @@
+import '../../shared/models/classification.dart';
+import '../../shared/widgets/subject_picker.dart';
+import '../../core/network/api_client.dart';
 import '../../shared/widgets/tag_filter.dart';
 import '../../shared/models/common_models.dart';
 import 'package:questrace_flutter/core/network/api_exception.dart';
@@ -38,6 +41,7 @@ class QuestionListPage extends ConsumerStatefulWidget {
 class _QuestionListPageState extends ConsumerState<QuestionListPage> {
   late ListQuestionFilter _filter;
   final List<int> _selectedQuestionIds = <int>[];
+  final Map<int, int> _selectedRevisions = {};
 
   @override
   void initState() {
@@ -51,13 +55,101 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
     if (oldWidget.initialFilter != widget.initialFilter) {
       setState(() {
         _filter = widget.initialFilter;
+        _selectedQuestionIds.clear();
       });
     }
   }
 
+  Future<void> _reclassify() async {
+    var target = const Classification();
+    String chapter = '';
+    bool busy = false;
+    String? error;
+    final selected = List<int>.from(_selectedQuestionIds);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text('复核 ${selected.length} 道题的分类'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('原标签和摘要保留供复核；分类变更后重新生成索引。'),
+                SubjectPicker(
+                  allowAnalysisConfirmation: false,
+                  value: target,
+                  chapter: chapter,
+                  onChanged: (v, c) => setLocal(() {
+                    target = v;
+                    chapter = c;
+                  }),
+                ),
+                if (error != null) Text(error!),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: busy || target.subjectId.isEmpty
+                  ? null
+                  : () async {
+                      setLocal(() {
+                        busy = true;
+                        error = null;
+                      });
+                      try {
+                        await ref
+                            .read(apiClientProvider)
+                            .post(
+                              '/api/v1/wrong-questions/classification',
+                              data: {
+                                'subject_id': target.subjectId,
+                                'course_id': target.courseId,
+                                'chapter': chapter,
+                                'items': [
+                                  for (final id in selected)
+                                    {
+                                      'question_id': id,
+                                      'revision': _selectedRevisions[id],
+                                    },
+                                ],
+                              },
+                            );
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (mounted) {
+                          setState(() => _selectedQuestionIds.clear());
+                          ref.invalidate(questionListProvider);
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          setLocal(() {
+                            busy = false;
+                            error = describeError(e);
+                          });
+                        }
+                      }
+                    },
+              child: Text(busy ? '保存中…' : '确认修改'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showFilters() async {
-    final keyword = TextEditingController(text: _filter.keyword),
-        subject = TextEditingController(text: _filter.subject);
+    final keyword = TextEditingController(text: _filter.keyword);
+    var classification = _filter.classification;
+    var chapter = _filter.chapter ?? '';
+    var status = classification.status == 'legacy_pending'
+        ? 'legacy_pending'
+        : '';
     var tags = List<int>.from(_filter.tagIds);
     var mastery = _filter.masteryStatus;
     var source = _filter.sourceType;
@@ -84,9 +176,29 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                     hintText: '搜索题目与标签',
                   ),
                 ),
-                TextField(
-                  controller: subject,
-                  decoration: const InputDecoration(labelText: '学科'),
+                SubjectPicker(
+                  value: classification,
+                  chapter: chapter,
+                  filter: true,
+                  onChanged: (v, c) => setLocal(() {
+                    classification = v;
+                    chapter = c;
+                    tags = [];
+                  }),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: '分类状态'),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('全部')),
+                    DropdownMenuItem(
+                      value: 'legacy_pending',
+                      child: Text('历史分类待复核'),
+                    ),
+                    DropdownMenuItem(value: 'pending', child: Text('待分类')),
+                    DropdownMenuItem(value: 'confirmed', child: Text('已分类')),
+                  ],
+                  onChanged: (v) => setLocal(() => status = v ?? ''),
                 ),
                 DropdownButtonFormField<MasteryStatus>(
                   initialValue: mastery,
@@ -109,6 +221,8 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                   onChanged: (v) => setLocal(() => source = v),
                 ),
                 TagFilter(
+                  subjectId: classification.subjectId,
+                  courseId: classification.courseId,
                   selected: tags,
                   onChanged: (v) => setLocal(() => tags = v),
                 ),
@@ -116,7 +230,10 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                 FilledButton(
                   onPressed: () => Navigator.pop(sheet, {
                     'keyword': keyword.text.trim(),
-                    'subject': subject.text.trim(),
+                    'subject_id': classification.subjectId,
+                    'course_id': classification.courseId,
+                    'chapter': chapter,
+                    'classification_status': status,
                     'tag_ids': tags.join(','),
                     'mastery_status': mastery?.value ?? '',
                     'source_type': source?.value ?? '',
@@ -132,7 +249,6 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
     // Keep controllers alive until the route transition has released its fields.
     Future.delayed(const Duration(milliseconds: 400), () {
       keyword.dispose();
-      subject.dispose();
     });
     if (query != null && mounted) {
       context.go(
@@ -152,6 +268,12 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
       appBar: AppBar(
         title: const Text('错题列表'),
         actions: [
+          if (_selectedQuestionIds.isNotEmpty)
+            IconButton(
+              tooltip: '复核所选题目分类',
+              icon: const Icon(Icons.category_outlined),
+              onPressed: _reclassify,
+            ),
           IconButton(
             tooltip: '复习与组卷',
             onPressed: () => context.push('/reviews'),
@@ -318,6 +440,14 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
       }
 
       _selectedQuestionIds.add(questionId);
+      final items =
+          ref.read(questionListProvider(_filter)).value?.list ??
+          <QuestionListItem>[];
+      for (final q in items) {
+        if (q.questionId == questionId) {
+          _selectedRevisions[questionId] = q.classification.revision;
+        }
+      }
     });
   }
 
@@ -433,7 +563,7 @@ class _QuestionListCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${item.subject} · ${item.chapter}\n掌握状态：${item.masteryStatus.label} · 来源：${item.sourceImageUrl.isNotEmpty ? '图片' : '文本'}',
+                      '${item.classification.label(item.subject, item.chapter)} ${item.classification.statusLabel}\n掌握状态：${item.masteryStatus.label} · 来源：${item.sourceImageUrl.isNotEmpty ? '图片' : '文本'}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -463,7 +593,11 @@ class _FilterSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = <String>[
       if (filter.keyword?.isNotEmpty == true) '关键词：${filter.keyword}',
-      if (filter.subject?.isNotEmpty == true) '学科：${filter.subject}',
+      if (filter.classification.subjectId.isNotEmpty)
+        '学科：${subjectNames[filter.classification.subjectId] ?? filter.classification.subjectId}',
+      if (filter.classification.courseId.isNotEmpty)
+        '课程：${courseNames[filter.classification.courseId]}',
+      if (filter.classification.status == 'legacy_pending') '历史分类待复核',
       if (filter.masteryStatus != null) '掌握状态：${filter.masteryStatus!.label}',
       if (filter.sourceType != null) '来源：${filter.sourceType!.label}',
       if (activeTagName.isNotEmpty) '标签：$activeTagName',

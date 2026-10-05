@@ -1,4 +1,5 @@
 export interface RegisterPayload {
+  education_stage: string
   username: string
   password: string
   email: string

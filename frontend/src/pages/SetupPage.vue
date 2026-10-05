@@ -8,18 +8,20 @@
         <el-form-item label="管理员用户名"><el-input v-model="form.username" autocomplete="username" /></el-form-item>
         <el-form-item label="邮箱"><el-input v-model="form.email" type="email" /></el-form-item>
         <el-form-item label="密码（至少 8 位）"><el-input v-model="form.password" type="password" show-password autocomplete="new-password" /></el-form-item>
+        <EducationStagePicker v-model="form.education_stage"/>
         <el-button native-type="submit" type="primary" :loading="busy">创建管理员</el-button>
       </el-form>
     </section>
   </main>
 </template>
 <script setup lang="ts">
+import EducationStagePicker from '@/components/EducationStagePicker/index.vue'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { httpPost } from '@/api/http'
 const router=useRouter()
-const form=reactive({token:new URLSearchParams(location.hash.slice(1)).get('token')||'',username:'',email:'',password:''})
+const form=reactive({token:new URLSearchParams(location.hash.slice(1)).get('token')||'',username:'',email:'',password:'',education_stage:''})
 if(location.hash) history.replaceState(null,'',location.pathname)
 const busy=ref(false),error=ref('')
-async function submit(){error.value='';if(!form.token||!form.username||!form.email||form.password.length<8){error.value='请填写所有字段，密码至少 8 位';return}busy.value=true;try{await httpPost('/api/v1/system/setup',form);await router.replace('/auth')}catch(e){error.value=(e as Error).message}finally{busy.value=false}}
+async function submit(){error.value='';if(!form.education_stage){error.value='请选择当前学习阶段：大学或高中';return}if(!form.token||!form.username||!form.email||form.password.length<8){error.value='请填写所有字段，密码至少 8 位';return}busy.value=true;try{await httpPost('/api/v1/system/setup',form);await router.replace('/auth')}catch(e){error.value=(e as Error).message}finally{busy.value=false}}
 </script>

@@ -32,9 +32,30 @@ func (s *UserService) GetMe(ctx context.Context) (dto.UserMeResponse, error) {
 	}
 
 	return dto.UserMeResponse{
-		UserID:    user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UserID:         user.ID,
+		EducationStage: user.EducationStage,
+		Username:       user.Username,
+		Email:          user.Email,
+		CreatedAt:      user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}, nil
+}
+
+func ValidateEducationStage(stage string) error {
+	if stage != "university" && stage != "highschool" {
+		return apperrors.New(400, 40001, "请选择当前学习阶段：大学或高中")
+	}
+	return nil
+}
+func (s *UserService) UpdateEducationStage(ctx context.Context, stage string) (dto.UserMeResponse, error) {
+	if err := ValidateEducationStage(stage); err != nil {
+		return dto.UserMeResponse{}, err
+	}
+	me, err := s.GetMe(ctx)
+	if err != nil {
+		return me, err
+	}
+	if err = s.userRepo.UpdateEducationStage(me.UserID, stage); err != nil {
+		return dto.UserMeResponse{}, err
+	}
+	return s.GetMe(ctx)
 }

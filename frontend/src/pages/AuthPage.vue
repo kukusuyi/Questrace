@@ -61,6 +61,7 @@
                                     @keyup.enter="submitRegister"
                                 />
                             </el-form-item>
+                            <EducationStagePicker v-model="registerForm.education_stage"/>
                             <el-button
                                 type="primary"
                                 class="submit-btn"
@@ -74,6 +75,7 @@
                 </el-tabs>
             </section></main></template>
 <script setup lang="ts">
+import EducationStagePicker from "@/components/EducationStagePicker/index.vue";
 import { ElMessage } from "element-plus";
 import { computed, reactive, ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -95,6 +97,7 @@ const loginForm = reactive({
 });
 
 const registerForm = reactive({
+ education_stage: "",
     username: "",
     email: "",
     password: "",
@@ -123,6 +126,7 @@ async function submitLogin() {
 }
 
 async function submitRegister() {
+ if(!registerForm.education_stage){ElMessage.warning("请选择当前学习阶段：大学或高中");return;}
     if (
         !registerForm.username.trim() ||
         !registerForm.email.trim() ||

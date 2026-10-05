@@ -1,3 +1,5 @@
+import '../../shared/models/classification.dart';
+import '../../shared/widgets/subject_picker.dart';
 import '../../shared/widgets/solution_ocr_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,157 +67,198 @@ class _QuestionCreatePageState extends ConsumerState<QuestionCreatePage> {
     final draft = ref.watch(questionDraftControllerProvider);
     _hydrateIfNeeded(draft);
     return DraftPageScope(
-        child: Scaffold(
-      appBar: AppBar(
+      child: Scaffold(
+        appBar: AppBar(
           title: const Text('整理错题'),
-          leading:
-              BackButton(onPressed: () => Navigator.of(context).maybePop()),
+          leading: BackButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
           actions: [
             PopupMenuButton<String>(
-                tooltip: '更多操作',
-                onSelected: (v) {
-                  if (v == 'advanced') {
-                    setState(() => _advanced = !_advanced);
-                  } else if (v == 'image') {
-                    context.push('/questions/upload');
-                  } else {
-                    _confirmDiscard();
-                  }
-                },
-                itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'image', child: Text('改用图片录入')),
-                      PopupMenuItem(value: 'advanced', child: Text('高级编辑')),
-                      PopupMenuItem(value: 'discard', child: Text('清空草稿'))
-                    ])
-          ]),
-      bottomNavigationBar: SafeArea(
+              tooltip: '更多操作',
+              onSelected: (v) {
+                if (v == 'advanced') {
+                  setState(() => _advanced = !_advanced);
+                } else if (v == 'image') {
+                  context.push('/questions/upload');
+                } else {
+                  _confirmDiscard();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'image', child: Text('改用图片录入')),
+                PopupMenuItem(value: 'advanced', child: Text('高级编辑')),
+                PopupMenuItem(value: 'discard', child: Text('清空草稿')),
+              ],
+            ),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
           top: false,
           child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(children: [
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
                 Expanded(
-                    child: OutlinedButton(
-                        onPressed: _submitting
-                            ? null
-                            : () async {
-                                _persistDraft();
-                                if (await showAnalysisPicker(context) &&
-                                    mounted) {
-                                  await _analyze();
-                                }
-                              },
-                        child: Text(_submitting && _operation == 'analysis'
-                            ? '分析中…'
-                            : 'AI 辅助'))),
+                  child: OutlinedButton(
+                    onPressed: _submitting
+                        ? null
+                        : () async {
+                            _persistDraft();
+                            if (await showAnalysisPicker(context) && mounted) {
+                              await _analyze();
+                            }
+                          },
+                    child: Text(
+                      _submitting && _operation == 'analysis'
+                          ? '分析中…'
+                          : 'AI 辅助',
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: FilledButton(
-                        onPressed: _submitting ? null : _saveDirectly,
-                        child: Text(_submitting && _operation == 'save'
-                            ? '保存中…'
-                            : '保存错题')))
-              ]))),
-      body: ListView(
+                  child: FilledButton(
+                    onPressed: _submitting ? null : _saveDirectly,
+                    child: Text(
+                      _submitting && _operation == 'save' ? '保存中…' : '保存错题',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: ListView(
           padding: const EdgeInsets.all(20),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
             if (_error != null)
               Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(_error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error))),
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
             if (_advanced) ...[
               SegmentedButton<QuestionCreateMode>(
-                  segments: const [
-                    ButtonSegment(
-                        value: QuestionCreateMode.form, label: Text('表单')),
-                    ButtonSegment(
-                        value: QuestionCreateMode.json, label: Text('JSON'))
-                  ],
-                  selected: {
-                    _mode
-                  },
-                  onSelectionChanged: (selection) {
-                    final next = selection.first;
-                    if (next == QuestionCreateMode.json) {
-                      _syncJsonFromForm();
-                    } else if (!_applyJsonToForm(showError: true)) {
-                      return;
-                    }
-                    setState(() => _mode = next);
-                  }),
-              const SizedBox(height: 16)
+                segments: const [
+                  ButtonSegment(
+                    value: QuestionCreateMode.form,
+                    label: Text('表单'),
+                  ),
+                  ButtonSegment(
+                    value: QuestionCreateMode.json,
+                    label: Text('JSON'),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (selection) {
+                  final next = selection.first;
+                  if (next == QuestionCreateMode.json) {
+                    _syncJsonFromForm();
+                  } else if (!_applyJsonToForm(showError: true)) {
+                    return;
+                  }
+                  setState(() => _mode = next);
+                },
+              ),
+              const SizedBox(height: 16),
             ],
             Card(
-                child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('题目与思路',
-                              style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: 20),
-                          if (_mode == QuestionCreateMode.form) ...[
-                            TextFormField(
-                                controller: _questionCoreController,
-                                minLines: 4,
-                                maxLines: 10,
-                                decoration: const InputDecoration(
-                                    labelText: '题目内容',
-                                    hintText: '支持文字与 LaTeX 公式'),
-                                onChanged: (_) => _persistDraft()),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                                controller: _standardSolutionController,
-                                minLines: 3,
-                                maxLines: 8,
-                                decoration:
-                                    const InputDecoration(labelText: '标准解（可选）'),
-                                onChanged: (_) => _persistDraft()),
-                            SolutionOcrButton(
-                                controller: _standardSolutionController,
-                                onApplied: _persistDraft),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                                controller: _wrongSolutionController,
-                                minLines: 3,
-                                maxLines: 8,
-                                decoration: const InputDecoration(
-                                    labelText: '错误思路（可选）'),
-                                onChanged: (_) => _persistDraft()),
-                          ] else
-                            QuestionJsonEditor(
-                                controller: _jsonController,
-                                errorText: _jsonError,
-                                onChanged: (_) => _persistDraft()),
-                        ]))),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '题目与思路',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 20),
+                    if (_mode == QuestionCreateMode.form) ...[
+                      TextFormField(
+                        controller: _questionCoreController,
+                        minLines: 4,
+                        maxLines: 10,
+                        decoration: const InputDecoration(
+                          labelText: '题目内容',
+                          hintText: '支持文字与 LaTeX 公式',
+                        ),
+                        onChanged: (_) => _persistDraft(),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _standardSolutionController,
+                        minLines: 3,
+                        maxLines: 8,
+                        decoration: const InputDecoration(labelText: '标准解（可选）'),
+                        onChanged: (_) => _persistDraft(),
+                      ),
+                      SolutionOcrButton(
+                        controller: _standardSolutionController,
+                        onApplied: _persistDraft,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _wrongSolutionController,
+                        minLines: 3,
+                        maxLines: 8,
+                        decoration: const InputDecoration(
+                          labelText: '错误思路（可选）',
+                        ),
+                        onChanged: (_) => _persistDraft(),
+                      ),
+                    ] else
+                      QuestionJsonEditor(
+                        controller: _jsonController,
+                        errorText: _jsonError,
+                        onChanged: (_) => _persistDraft(),
+                      ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             Card(
-                child: ExpansionTile(
-                    shape: const Border(),
-                    title: const Text('学科与章节'),
-                    subtitle: Text(_subjectController.text.isEmpty
-                        ? '可以稍后完善'
-                        : _subjectController.text),
-                    childrenPadding: const EdgeInsets.all(20),
-                    children: [
-                  TextFormField(
-                      controller: _subjectController,
-                      decoration: const InputDecoration(labelText: '学科'),
-                      onChanged: (_) => _persistDraft()),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                      controller: _chapterController,
-                      decoration: const InputDecoration(labelText: '章节'),
-                      onChanged: (_) => _persistDraft())
-                ])),
+              child: ExpansionTile(
+                shape: const Border(),
+                title: const Text('学科与章节'),
+                subtitle: Text(
+                  _subjectController.text.isEmpty
+                      ? '可以稍后完善'
+                      : _subjectController.text,
+                ),
+                childrenPadding: const EdgeInsets.all(20),
+                children: [
+                  SubjectPicker(
+                    suggestedSubject: draft?.suggestedSubject ?? '',
+                    onSuggestionDismissed: () => ref
+                        .read(questionDraftControllerProvider.notifier)
+                        .dismissSuggestedSubject(),
+                    value: draft?.classification ?? const Classification(),
+                    chapter: _chapterController.text,
+                    onChanged: (v, c) {
+                      _subjectController.text = v.subjectName;
+                      _chapterController.text = c;
+                      ref
+                          .read(questionDraftControllerProvider.notifier)
+                          .updateClassification(v, c);
+                    },
+                  ),
+                ],
+              ),
+            ),
             if (draft?.sourceImageUrl.isNotEmpty == true)
               const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('已附上原图，保存后可在详情中查看。')),
-          ]),
-    ));
+                padding: EdgeInsets.all(16),
+                child: Text('已附上原图，保存后可在详情中查看。'),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _hydrateIfNeeded(QuestionDraft? draft) {
@@ -238,15 +281,17 @@ class _QuestionCreatePageState extends ConsumerState<QuestionCreatePage> {
       return;
     }
 
-    ref.read(questionDraftControllerProvider.notifier).updateBasicFields(
+    ref
+        .read(questionDraftControllerProvider.notifier)
+        .updateBasicFields(
           subject: _subjectController.text.trim(),
           chapter: _chapterController.text.trim(),
           questionJson: questionJson,
           flowMode: DraftFlowMode.manual,
           sourceType:
               ref.read(questionDraftControllerProvider)?.sourceImageId != null
-                  ? SourceType.image
-                  : SourceType.manual,
+              ? SourceType.image
+              : SourceType.manual,
         );
   }
 
@@ -325,9 +370,9 @@ class _QuestionCreatePageState extends ConsumerState<QuestionCreatePage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _confirmDiscard() {
@@ -449,7 +494,4 @@ class _QuestionCreatePageState extends ConsumerState<QuestionCreatePage> {
   }
 }
 
-enum QuestionCreateMode {
-  form,
-  json,
-}
+enum QuestionCreateMode { form, json }

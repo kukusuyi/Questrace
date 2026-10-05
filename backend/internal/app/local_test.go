@@ -45,7 +45,7 @@ func newTestRuntime(t *testing.T) *LocalRuntime {
 }
 func setupAndLogin(t *testing.T, rt *LocalRuntime) string {
 	t.Helper()
-	code, res := request(t, rt, "POST", "/api/v1/system/setup", "", map[string]string{"token": rt.Config().SetupToken, "username": "owner", "password": "password123", "email": "owner@test.local"})
+	code, res := request(t, rt, "POST", "/api/v1/system/setup", "", map[string]string{"token": rt.Config().SetupToken, "username": "owner", "password": "password123", "email": "owner@test.local", "education_stage": "university"})
 	if code != 200 {
 		t.Fatalf("setup: %d %v", code, res)
 	}
@@ -66,7 +66,7 @@ func TestLocalFirstSetupAndCRUD(t *testing.T) {
 	if code != 409 {
 		t.Fatal("setup reusable")
 	}
-	code, res := request(t, rt, "POST", "/api/v1/admin/users", admin, map[string]string{"username": "other", "password": "password123", "email": "other@test.local"})
+	code, res := request(t, rt, "POST", "/api/v1/admin/users", admin, map[string]string{"username": "other", "password": "password123", "email": "other@test.local", "education_stage": "university"})
 	if code != 200 {
 		t.Fatalf("user: %v", res)
 	}
@@ -76,7 +76,7 @@ func TestLocalFirstSetupAndCRUD(t *testing.T) {
 	if code != 403 {
 		t.Fatal("non-admin settings allowed")
 	}
-	q := map[string]any{"subject": "math", "source_type": "manual", "question_json": map[string]string{"question_core": "1+1?"}, "semantic_summary": "", "mastery_status": "unmastered", "tags": map[string]any{}}
+	q := map[string]any{"subject": "考研数学", "subject_id": "math_grad", "source_type": "manual", "question_json": map[string]string{"question_core": "1+1?"}, "semantic_summary": "", "mastery_status": "unmastered", "tags": map[string]any{}}
 	code, res = request(t, rt, "POST", "/api/v1/wrong-questions", admin, q)
 	if code != 200 {
 		t.Fatalf("create without models: %d %v", code, res)
@@ -177,7 +177,7 @@ func TestBackupRestoreAndNewerSchema(t *testing.T) {
 func TestFileOwnershipAndSettingsRedaction(t *testing.T) {
 	rt := newTestRuntime(t)
 	admin := setupAndLogin(t, rt)
-	_, res := request(t, rt, "POST", "/api/v1/admin/users", admin, map[string]string{"username": "reader", "password": "password123", "email": "reader@test.local"})
+	_, res := request(t, rt, "POST", "/api/v1/admin/users", admin, map[string]string{"username": "reader", "password": "password123", "email": "reader@test.local", "education_stage": "university"})
 	if res["code"] != float64(0) {
 		t.Fatal(res)
 	}
@@ -226,7 +226,7 @@ func TestFileOwnershipAndSettingsRedaction(t *testing.T) {
 func TestQuestionTagRollbackAndSoftDelete(t *testing.T) {
 	rt := newTestRuntime(t)
 	admin := setupAndLogin(t, rt)
-	payload := map[string]any{"subject": "math", "source_type": "manual", "question_json": map[string]string{"question_core": "q"}, "tags": map[string]any{"knowledge_points": []string{"calculus"}}, "mastery_status": "unmastered"}
+	payload := map[string]any{"subject": "考研数学", "subject_id": "math_grad", "source_type": "manual", "question_json": map[string]string{"question_core": "q"}, "tags": map[string]any{"knowledge_points": []string{"calculus"}}, "mastery_status": "unmastered"}
 	code, res := request(t, rt, "POST", "/api/v1/wrong-questions", admin, payload)
 	if code != 200 {
 		t.Fatalf("create: %v", res)

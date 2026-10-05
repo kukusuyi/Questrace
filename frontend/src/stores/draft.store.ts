@@ -34,7 +34,8 @@ export function createEmptyDraft(flowMode: DraftFlowMode = 'manual'): QuestionDr
     model_name: '',
     source_type: sourceType,
     source_image_url: '',
-    subject: 'math',
+    subject: '待分类',
+    subject_id:'',course_id:'',classification_status:'pending',analysis_stale:false,
     chapter: '',
     chapter_locked: false,
     question_json: createEmptyQuestionJSON(),
@@ -64,6 +65,7 @@ export const useDraftStore = defineStore('draft', () => {
       currentDraft.value = {
         ...base,
         ...parsed,
+        ...(parsed.subject_id===undefined?{subject_id:'',classification_status:'pending',analysis_stale:true,analysis_confirmed:false}:{}),
         question_json: {
           ...base.question_json,
           ...parsed.question_json,
@@ -112,6 +114,7 @@ export const useDraftStore = defineStore('draft', () => {
     draft.source_image_url = imageURL
     draft.question_json = createEmptyQuestionJSON()
     draft.ocr_context = undefined
+    draft.subject_id='';draft.subject='待分类';draft.course_id='';draft.classification_status='pending';draft.analysis_stale=false;draft.analysis_confirmed=false;draft.warnings=[];draft.suggested_subject='';
     draft.chapter = ''
     draft.chapter_locked = false
     draft.tags = createEmptyTags()
@@ -129,7 +132,8 @@ export const useDraftStore = defineStore('draft', () => {
     if(!window.sessionStorage.getItem(STORAGE_KEY+':before-analysis'))window.sessionStorage.setItem(STORAGE_KEY+':before-analysis',JSON.stringify(draft))
     currentDraft.value = {
       ...draft,
-      chapter: result.chapter || draft.chapter,
+      subject_id:result.subject_id||'',subject:result.subject||'待分类',course_id:result.course_id||'',classification_status:result.classification_status||'pending',analysis_stale:false,analysis_confirmed:true,warnings:result.warnings,suggested_subject:result.suggested_subject,
+      chapter: result.chapter,
       chapter_locked: draft.chapter_locked,
       tags: {
         ...result.tags,

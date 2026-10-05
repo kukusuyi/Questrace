@@ -23,6 +23,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _emailController = TextEditingController();
   final _apiUrlController = TextEditingController();
   bool _registerMode = false;
+  String? _educationStage;
   bool _apiUrlExpanded = false;
   bool _connecting = false;
   String? _connectionError;
@@ -143,6 +144,26 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           ),
                           const SizedBox(height: 16),
                           if (_registerMode) ...[
+                            DropdownButtonFormField<String>(
+                              initialValue: _educationStage,
+                              decoration: const InputDecoration(
+                                labelText: '当前学习阶段',
+                              ),
+                              hint: const Text('请选择大学或高中'),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'university',
+                                  child: Text('大学'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'highschool',
+                                  child: Text('高中'),
+                                ),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _educationStage = v),
+                            ),
+                            const SizedBox(height: 16),
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
@@ -247,6 +268,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       return;
     }
 
+    if (_registerMode && _educationStage == null) {
+      _showMessage('请选择当前学习阶段：大学或高中');
+      return;
+    }
     if (_registerMode && email.isEmpty) {
       _showMessage('注册模式下需要填写邮箱');
       return;
@@ -258,6 +283,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             .read(authControllerProvider.notifier)
             .register(
               RegisterPayload(
+                educationStage: _educationStage!,
                 username: username,
                 password: password,
                 email: email,

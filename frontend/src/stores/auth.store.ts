@@ -1,3 +1,5 @@
+import {useUserStore} from './user.store'
+import {useSubjectsStore} from './subjects.store'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -19,6 +21,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => Boolean(token.value))
 
   function applyAuth(result: AuthResponse) {
+    useUserStore().clearProfile();useSubjectsStore().reset()
     token.value = result.token
     authUser.value = {
       user_id: result.user_id,
@@ -51,6 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
+    useUserStore().clearProfile();useSubjectsStore().reset()
     token.value = ''
     authUser.value = null
     clearAuthState()
