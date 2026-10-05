@@ -1,6 +1,22 @@
 !include "nsDialogs.nsh"
 !include "LogicLib.nsh"
 
+!ifndef BUILD_UNINSTALLER
+; Discovering this computer from the phone needs inbound UDP 5353 (mDNS) on the
+; local network. Windows asks for that on first launch, but a dismissed prompt -
+; or an image with prompts disabled - would silently break discovery, so the rule
+; is registered during the install. Only an elevated install (all users, or "run
+; as administrator") may change firewall policy; a per-user install logs the
+; netsh error and keeps working through the Windows prompt instead.
+; The public profile stays untouched on purpose: mDNS on a network Windows
+; treats as public is not something this app should widen silently.
+!macro customInstall
+  DetailPrint "登记局域网发现所需的防火墙规则…"
+  nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Questrace LAN discovery" dir=in action=allow protocol=UDP localport=5353 profile=private,domain'
+  Pop $0
+!macroend
+!endif
+
 !ifdef BUILD_UNINSTALLER
 Var QuestraceKeepData
 Var QuestraceKeepDataCheckbox
@@ -23,6 +39,9 @@ Var QuestraceRoamingData
 !macroend
 
 !macro customUnInstall
+  ; The firewall rule is machine-wide, so it leaves with the application.
+  nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Questrace LAN discovery"'
+  Pop $0
   ; Never delete data on upgrades or unattended uninstalls. Only the visible
   ; checkbox and its confirmation can authorize this application's cleanup.
   ${IfNot} ${isUpdated}
